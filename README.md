@@ -23,7 +23,7 @@ A modern, AI-powered web app to generate personalized cover letters from your CV
 
 1. **Clone the repository**
     ```bash
-    git clone https://github.com/yourusername/ai-job-application-agent.git
+    [git clone https://github.com/yourusername/ai-job-application-agent.git](https://github.com/MatthiasKCM/AI-Agent.git)
     cd ai-job-application-agent
     ```
 
