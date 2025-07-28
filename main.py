@@ -3,6 +3,8 @@ from agent.pdf_export import create_pdf
 from agent.utils import extract_text_from_pdf
 import streamlit as st
 
+#Frontend
+
 st.title("🧠 KI-Bewerbungs-Agent")
 
 cv_file = st.file_uploader("📎 Lebenslauf (PDF)")

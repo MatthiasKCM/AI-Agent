@@ -1,16 +1,46 @@
+import os
+
 import openai
+from datetime import datetime
 #Logik um mit OpenAI zu kommunizieren
 
-client = openai.OpenAI(api_key="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")
+client = openai.OpenAI(api_key="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")
+#Tagesdatum
 
-def generate_cover_letter(cv_text, job_description, stil,language):
+
+def generate_cover_letter(cv_text, job_description, stil, language):
+    today = datetime.now().strftime("%d.%m.%Y")
     system_prompt = f"""
-    Du bist ein professioneller Bewerbungsschreiber. Schreibe ein individuelles, überzeugendes Bewerbungsschreiben basierend auf Lebenslauf und Stellenanzeige.
-    Kein Bullshit, keine Floskeln, sondern klar, persönlich und passend.
-    Stil: {stil}
-    Schreibe das Anschreiben in folgender Sprache: {language}.
-    """
+Du bist ein professioneller Bewerbungsschreiber. 
+Schreibe ein individuelles, professionelles Bewerbungsanschreiben im deutschen Standardlayout. 
+Maximal eine DIN-A4-Seite, 3–5 Absätze.Maximal 350 Wörter. 
+Keine Aufzählungen, keine Wiederholung aus dem Lebenslauf, kein Blabla.
+Fokussiere dich auf 2–3 wirklich relevante Qualifikationen und Motivation für die konkrete Stelle – streiche alles, was nicht im direkten Bezug zur Anzeige steht.
+Formatiere das Anschreiben nach deutschem Standard:
 
+[Dein Name]
+[Deine Adresse]
+[PLZ Ort]
+
+[Empfänger/Firma]
+[Empfänger-Adresse]
+[PLZ Ort]
+
+[Ort, Datum: {today}]
+
+Betreff: [Stellenbezeichnung] (fett, zentriert, ohne "Betreff:" davor)
+
+[Anrede] (z. B. "Sehr geehrte Frau Müller," oder "Sehr geehrte Damen und Herren,")
+
+[Fließtext – sinnvolle Absätze, kurze, aktive Sätze]
+
+[Abschiedsformel] (z. B. "Mit freundlichen Grüßen")
+[Dein Name]
+
+Halte dich exakt an diese Struktur und schreibe klar, persönlich und überzeugend.
+Stil: {stil}
+Sprache: {language}.
+"""
     response = client.chat.completions.create(
         model="gpt-4o",
         messages=[
@@ -57,6 +87,7 @@ def improve_letter(letter, kritikpunkte):
     prompt = f"""
     Hier ist ein Bewerbungsschreiben, gefolgt von Kritikpunkten und Verbesserungsvorschlägen.
     Überarbeite das Anschreiben so, dass es die Vorschläge optimal umsetzt. Baue die Kritikpunkte ein, mache es einzigartiger und vermeide alle generischen Floskeln. Gib nur den neuen Text aus!
+    
 
     Anschreiben:
     {letter}
