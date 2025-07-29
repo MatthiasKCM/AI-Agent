@@ -4,8 +4,7 @@ import openai
 from datetime import datetime
 #Logik um mit OpenAI zu kommunizieren
 
-client = openai.OpenAI(api_key="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")
-#Tagesdatum
+client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 
 def generate_cover_letter(cv_text, job_description, stil, language):
