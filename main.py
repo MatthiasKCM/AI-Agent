@@ -27,7 +27,8 @@ if st.button("✍️ Anschreiben generieren") and cv_file and job_text:
 
 # Anschreiben anzeigen, falls vorhanden
 if 'letter' in st.session_state and st.session_state['letter']:
-    st.text_area("📄 Ergebnis", value=st.session_state['letter'], height=500)
+    edited_letter = st.text_area("📄 Ergebnis (bearbeitbar)", value=st.session_state['letter'], height=500, key="editable_letter")
+    st.session_state['letter'] = edited_letter
 
     # Plagiat-Check nur, wenn Anschreiben existiert
     if st.button("🕵️‍♂️ Einzigartigkeit prüfen"):
@@ -46,8 +47,7 @@ if 'letter' in st.session_state and st.session_state['letter']:
     # PDF Export für aktuelles Anschreiben
     if st.button("📄 PDF-Export"):
         filename = create_pdf(
-            st.session_state['letter'],
-            style="klassisch"  # Stil kann auswählbar gemacht werden!
+            st.session_state['letter']
         )
         with open(filename, "rb") as f:
             st.download_button(

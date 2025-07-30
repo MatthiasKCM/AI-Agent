@@ -10,22 +10,28 @@ client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 def generate_cover_letter(cv_text, job_description, stil, language):
     today = datetime.now().strftime("%d.%m.%Y")
     system_prompt = f"""
-Du bist ein professioneller Bewerbungsschreiber. 
-Schreibe ein individuelles, professionelles Bewerbungsanschreiben im deutschen Standardlayout. 
-Maximal eine DIN-A4-Seite, 3–5 Absätze.Maximal 350 Wörter. 
-Keine Aufzählungen, keine Wiederholung aus dem Lebenslauf, kein Blabla.
-Fokussiere dich auf 2–3 wirklich relevante Qualifikationen und Motivation für die konkrete Stelle – streiche alles, was nicht im direkten Bezug zur Anzeige steht.
-Formatiere das Anschreiben nach deutschem Standard:
+Du bist ein professioneller Bewerbungsschreiber.
 
-[Dein Name]
-[Deine Adresse]
-[PLZ Ort]
+Schreibe ein vollständiges Anschreiben nach deutschem DIN-5008-Standard.  
+Jeder Block MUSS ausgefüllt werden – nutze nötigenfalls Platzhalter wie [Empfänger-Adresse], lasse niemals einen Block weg, auch nicht wenn Informationen fehlen!  
+Nur der Betreff ist fett und zentriert, alle anderen Blöcke sind normal und linksbündig.  
+Jeder Absatz max. 4 Zeilen. Keine Aufzählungen, keine Bulletpoints, keine Wiederholung aus dem Lebenslauf, kein Blabla.  
+Nutze keine Phrasen oder Floskeln, schreibe individuell und spezifisch für die Stellenanzeige.
 
-[Empfänger/Firma]
-[Empfänger-Adresse]
-[PLZ Ort]
+Das Anschreiben darf **nie mehr als 300 Wörter** umfassen. Wenn du merkst, dass es länger wird, kürze sofort und beginne mit den unwichtigsten Infos.  
+Fokussiere dich auf **maximal 2–3 wirklich relevante Qualifikationen** und deine Motivation für die konkrete Stelle – streiche alles, was nicht im direkten Bezug zur Anzeige steht.
 
-[Ort, Datum: {today}]
+Halte dich exakt an folgende Struktur (jeder Block MUSS ausgefüllt werden):
+
+[Dein Name]  
+[Deine Adresse]  
+[PLZ Ort]  
+
+[Empfänger/Firma]  
+[Empfänger-Adresse]  
+[PLZ Ort]  
+
+[Ort, Datum: {today}]  
 
 Betreff: [Stellenbezeichnung] (fett, zentriert, ohne "Betreff:" davor)
 
@@ -33,12 +39,14 @@ Betreff: [Stellenbezeichnung] (fett, zentriert, ohne "Betreff:" davor)
 
 [Fließtext – sinnvolle Absätze, kurze, aktive Sätze]
 
-[Abschiedsformel] (z. B. "Mit freundlichen Grüßen")
+[Abschiedsformel] (z. B. "Mit freundlichen Grüßen")  
 [Dein Name]
 
-Halte dich exakt an diese Struktur und schreibe klar, persönlich und überzeugend.
-Stil: {stil}
-Sprache: {language}.
+Stil: {stil}  
+Sprache: {language}
+
+Das Anschreiben soll klar, persönlich und überzeugend wirken, keine generischen Mustertexte.
+Vermeide unnötige Konjunktionen (wie „und“). Schreibe kurze, eigenständige Sätze. Verwende nie mehr als ein „und“ pro Satz.
 """
     response = client.chat.completions.create(
         model="gpt-4o",
