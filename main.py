@@ -9,7 +9,7 @@ st.markdown(
     """
     <style>
         .stApp {
-            background-image: url("https://anschreibenai.streamlit.app/A_seamless_digital_illustration_pattern_features_b.png");
+            background-image: url("https://github.com/MatthiasKCM/AI-Agent/blob/main/assets/pictures/AIAgent.png");
             background-size: cover;
         }
     </style>
