@@ -52,6 +52,14 @@ if st.button("✍️ Anschreiben generieren") and cv_file and job_text:
     st.session_state['letter'] = generate_cover_letter(cv_text, job_text, stil, language)
     st.success("✅ Anschreiben erstellt!")
 
+#Hinweis für Nutzer, dass das Textfeld editierbar ist!
+st.warning("""
+⚠️ **Wichtiger Hinweis:**  
+Im Anschreiben können Platzhalter (z. B. `[Unternehmensname]`, `[Plattformname]`, `[Teamname]`, `[Empfänger-Adresse]` etc.) erscheinen,  
+wenn entsprechende Infos im Lebenslauf oder in der Stellenanzeige fehlen.  
+**Bitte prüfe dein Anschreiben sorgfältig und ersetze alle Platzhalter durch die echten Namen und Daten, bevor du es versendest!**
+""")
+
 # Anschreiben anzeigen, falls vorhanden
 if 'letter' in st.session_state and st.session_state['letter']:
     edited_letter = st.text_area("📄 Ergebnis (bearbeitbar)", value=st.session_state['letter'], height=500, key="editable_letter")
