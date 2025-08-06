@@ -3,6 +3,20 @@ from agent.pdf_export import create_pdf
 from agent.utils import extract_text_from_pdf
 import streamlit as st
 import streamlit.components.v1 as components
+
+#Hintergrund einstellbar!
+st.markdown(
+    """
+    <style>
+        .stApp {
+            background-image: url("https://anschreibenai.streamlit.app/A_seamless_digital_illustration_pattern_features_b.png");
+            background-size: cover;
+        }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
 # Google Analytics Tracking einbinden
 GA_ID = "G-NW6J93TNXC"  # <-- Hier DEINE Google Analytics ID eintragen!
 components.html(
