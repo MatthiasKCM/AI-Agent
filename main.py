@@ -18,6 +18,9 @@ components.html(
     """,
     height=0,  # Unsichtbar!
 )
+#Titel
+st.title("🧠 KI-Bewerbungs-Agent")
+
 st.success("""
 🎯 **So funktioniert’s in 5 Schritten:**
 
@@ -30,8 +33,6 @@ st.success("""
 *Fertig! Dein Anschreiben ist bereit zum Versenden.*
 """)
 #Frontend
-
-st.title("🧠 KI-Bewerbungs-Agent")
 
 cv_file = st.file_uploader("📎 Lebenslauf (PDF)")
 job_text = st.text_area("🧾 Stellenanzeige einfügen")
