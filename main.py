@@ -18,6 +18,17 @@ components.html(
     """,
     height=0,  # Unsichtbar!
 )
+st.info("""
+**So funktioniert es:**
+
+1. Lebenslauf als PDF hochladen
+2. Stellenanzeige kopieren & einfügen
+3. Stil und Sprache auswählen
+4. Auf „Anschreiben generieren“ klicken
+5. Ergebnis prüfen, ggf. anpassen – und als PDF exportieren
+
+*Fertig! Dein Anschreiben ist sofort einsatzbereit.*
+""")
 #Frontend
 
 st.title("🧠 KI-Bewerbungs-Agent")
