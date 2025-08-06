@@ -18,16 +18,16 @@ components.html(
     """,
     height=0,  # Unsichtbar!
 )
-st.info("""
-**So funktioniert es:**
+st.success("""
+🎯 **So funktioniert’s in 5 Schritten:**
 
-1. Lebenslauf als PDF hochladen
-2. Stellenanzeige kopieren & einfügen
-3. Stil und Sprache auswählen
-4. Auf „Anschreiben generieren“ klicken
-5. Ergebnis prüfen, ggf. anpassen – und als PDF exportieren
+1. Lebenslauf als PDF hochladen  
+2. Stellenanzeige kopieren & einfügen  
+3. Stil und Sprache auswählen  
+4. Auf „Anschreiben generieren“ klicken  
+5. Anschreiben prüfen, anpassen und als PDF exportieren
 
-*Fertig! Dein Anschreiben ist sofort einsatzbereit.*
+*Fertig! Dein Anschreiben ist bereit zum Versenden.*
 """)
 #Frontend
 
