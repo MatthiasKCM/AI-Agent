@@ -18,16 +18,17 @@ components.html(
     """,
     height=0,  # Unsichtbar!
 )
-st.markdown("""
-<div style="background-color: #e6f7ff; border-left: 6px solid #1890ff; padding: 16px; margin-bottom:16px">
-<b>🚀 Schnellstart:</b><br>
-1. Lebenslauf hochladen<br>
-2. Stellenanzeige einfügen<br>
-3. Stil/Sprache wählen<br>
-4. Anschreiben generieren<br>
-5. Anpassen & als PDF exportieren
-</div>
-""", unsafe_allow_html=True)
+st.success("""
+🎯 **So funktioniert’s in 5 Schritten:**
+
+1. Lebenslauf als PDF hochladen  
+2. Stellenanzeige kopieren & einfügen  
+3. Stil und Sprache auswählen  
+4. Auf „Anschreiben generieren“ klicken  
+5. Anschreiben prüfen, anpassen und als PDF exportieren
+
+*Fertig! Dein Anschreiben ist bereit zum Versenden.*
+""")
 #Frontend
 
 st.title("🧠 KI-Bewerbungs-Agent")
