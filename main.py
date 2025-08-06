@@ -9,7 +9,7 @@ st.markdown(
     """
     <style>
         .stApp {
-            background-image: url("https://github.com/MatthiasKCM/AI-Agent/blob/main/assets/pictures/AIAgent.png");
+            background-image: url('https://raw.githubusercontent.com/MatthiasKCM/AI-Agent/main/assets/pictures/AIAgent.png');
             background-size: cover;
         }
     </style>
