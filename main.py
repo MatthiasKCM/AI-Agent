@@ -10,7 +10,8 @@ st.markdown(
     <style>
         .stApp {
             background-image: url('https://raw.githubusercontent.com/MatthiasKCM/AI-Agent/main/assets/pictures/AIAgent.png');
-            background-size: cover;
+            background-size: 400px auto;
+            background-repeat: repeat;
         }
     </style>
     """,
