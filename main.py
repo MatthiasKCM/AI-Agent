@@ -33,17 +33,7 @@ components.html(
     """,
     height=0,  # Unsichtbar!
 )
-st.markdown(
-    """
-    <div style="
-        background-color: rgba(255,255,255,0.92);
-        border-radius: 16px;
-        box-shadow: 0 2px 16px rgba(0,0,0,0.05);
-        padding: 32px 24px 24px 24px;
-        margin-bottom: 24px;">
-    """,
-    unsafe_allow_html=True
-)
+
 #Titel
 st.title("🧠 KI-Bewerbungs-Agent")
 
@@ -118,4 +108,3 @@ if 'letter' in st.session_state and st.session_state['letter']:
                 mime="application/pdf"
             )
 
-            st.markdown("</div>", unsafe_allow_html=True)  # Wrapper schließen
