@@ -49,7 +49,7 @@ Das Anschreiben soll klar, persönlich und überzeugend wirken, keine generische
 Vermeide unnötige Konjunktionen (wie „und“). Schreibe kurze, eigenständige Sätze. Verwende nie mehr als ein „und“ pro Satz.
 """
     response = client.chat.completions.create(
-        model="gpt-4o",
+        model="gpt-5",
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": f"LEBENSLAUF:\n{cv_text}"},
@@ -65,7 +65,7 @@ def check_cv(cv_text):
     Gib konkrete, praxisnahe Verbesserungsvorschläge. Antworte stichpunktartig und ehrlich.
     """
     response = client.chat.completions.create(
-        model="gpt-4o",
+        model="gpt-5",
         #Liste mit Dics
         messages=[
             {"role": "system", "content": prompt},
@@ -81,7 +81,7 @@ def uniqueness_check(letter):
     Bewerte zuerst kurz (1 Satz). Dann liste bitte stichpunktartig die Passagen oder Formulierungen, die besonders generisch oder austauschbar wirken – und schlage für jeden Punkt eine bessere, individuellere Alternative vor.
     """
     response = client.chat.completions.create(
-        model="gpt-4o",
+        model="gpt-5",
         messages=[
             {"role": "system", "content": prompt},
             {"role": "user", "content": f"ANSCHREIBEN:\n{letter}"},
@@ -103,7 +103,7 @@ def improve_letter(letter, kritikpunkte):
     {kritikpunkte}
     """
     response = client.chat.completions.create(
-        model="gpt-4o",
+        model="gpt-5",
         messages=[
             {"role": "system", "content": prompt},
             {"role": "user", "content": "Verbessere das Anschreiben entsprechend."}
