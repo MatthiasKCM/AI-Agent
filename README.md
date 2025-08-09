@@ -1,5 +1,9 @@
 # 🤖 AI Job Application Agent
 
+**🧪 [Live Demo](https://anschreibenai.streamlit.app/)**  
+Test the app instantly in your browser.
+
+
 Create better job applications in less time.  
 A modern, AI-powered web app to generate personalized cover letters from your CV and any job description – in multiple languages, with smart feedback and instant PDF export.
 
