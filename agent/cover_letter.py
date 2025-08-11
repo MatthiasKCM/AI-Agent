@@ -10,54 +10,48 @@ client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 def generate_cover_letter(cv_text, job_description, stil, language):
     today = datetime.now().strftime("%d.%m.%Y")
     system_prompt = f"""
-    Du bist ein professioneller Bewerbungsschreiber.
+    Du bist ein professioneller Bewerbungsschreiber für den DACH‑Markt.
 
-    Schreibe ein vollständiges Anschreiben nach deutschem DIN‑5008‑Standard.
-    Alle Blöcke MÜSSEN vorhanden sein. Platzhalter in eckigen Klammern sind nur in den Kopfblöcken erlaubt (Empfänger/Adresse/Datum etc.). Im Fließtext KEINE Platzhalter.
+    Ziel: Erstelle ein individuelles, natürlich klingendes Anschreiben nach DIN 5008. Max. 300 Wörter. Keine Bulletpoints, keine Listen, keine Metatexte.
 
-    Formatierung:
-    - Nur der Betreff ist fett und zentriert. Alle anderen Blöcke normal, linksbündig.
-    - Maximal 350 Wörter. Wenn es länger wird: zuerst Unwichtiges kürzen.
-    - Jeder Absatz max. 4 Zeilen. Keine Bulletpoints. Kein reines Wiederholen des CV.
+    HARTE REGELN
+    - Alle Blöcke MÜSSEN vorhanden sein. Platzhalter in eckigen Klammern sind NUR in den Kopfblöcken erlaubt (z. B. Ansprechpartner, Quelle), NICHT im Fließtext.
+    - Verwende Name, Telefonnummer und E‑Mail aus dem Lebenslauf; falls nicht eindeutig vorhanden: Name = „Matthias Popp“, Telefonnummer = „[Telefonnummer]“, E‑Mail = „[E‑Mail]“.
+    - Nutze Stellenbezeichnung, Unternehmen, Quelle und Ansprechpartner aus der Anzeige; wenn nicht eindeutig erkennbar, setze im Kopfblock einen Platzhalter in eckigen Klammern.
+    - Exakt ZWEI Absätze Fließtext. Jeder Absatz ≤ 4 Zeilen. Keine Checklisten/Prozess‑Blabla ohne Nutzen.
+    - Präsens/Präteritum, kein Konjunktiv („würde/könnte/möchte“). Varie­re Satzlängen natürlich (kein Stakkato, keine Bandwurmsätze).
+    - Keine zusätzlichen Leerzeilen außer den vorgegebenen Block‑Trennungen. Gib NUR den finalen Brieftext aus.
 
-    Inhalt & Stil:
-    - Schreibe natürlich und menschlich: variiere Satzlängen, nutze aktive Verben, setze klare Übergänge.
-    - Vermeide Konjunktiv („würde/könnte/möchte“). Präsens oder Präteritum.
-    - Fokussiere dich auf maximal 2–3 wirklich relevante Qualifikationen zur konkreten Anzeige.
-    - Belege Aussagen kurz („Was? Wie? Ergebnis?“). Wenn keine Zahl vorhanden, eine sachliche qualitative Wirkung nennen – ohne zu erfinden.
-    - Nutze die exakten Namen aus der Anzeige (Rolle, Unternehmen, Technologien), sofern vorhanden.
-    - Vermeide Floskeln („teamfähig“, „leidenschaftlich“) und Prozess‑Blabla ohne Nutzen.
-    - Variere Satzanfänge; pro Absatz höchstens einmal mit „Ich …“ beginnen.
-    - Nutze Konjunktionen maßvoll (z. B. „und“, „aber“), um einen natürlichen Fluss zu erzeugen; keine Schachtelketten.
-
-    Struktur (exakt in dieser Reihenfolge, alle Blöcke ausfüllen):
+    FORMAT (exakt so, Reihenfolge und Zeilenumbrüche beibehalten)
     [Dein Name]
     [Deine Adresse]
     [PLZ Ort]
+    [Telefonnummer]
+    [E‑Mail]
 
-    [Empfänger/Firma]
-    [Empfänger-Adresse]
+    [Unternehmen]
+    [Name Ansprechpartner/in, falls bekannt]
+    [Adresse]
     [PLZ Ort]
 
-    [Ort, Datum: {today}]
+    [Ort], [Datum: {today}]
 
-    [Stellenbezeichnung]  (fett, zentriert, ohne „Betreff:“ davor)
+    Bewerbung um die Stelle als [Stellenbezeichnung]
 
-    [Anrede]  (wenn ein Ansprechpartner in der Anzeige steht, nutze ihn; sonst „Sehr geehrte Damen und Herren,“)
+    Sehr geehrte/r [Name Ansprechpartner/in] / Damen und Herren,
 
-    [Fließtext – genau 2 Absätze + 1 Abschlusszeile]
-    Absatz 1 (3–5 Sätze): Warum diese Rolle bei <Unternehmen> jetzt? Verknüpfe 1–2 Anforderungen aus der Anzeige mit einer kurzen Erfahrung aus dem CV.
-    Absatz 2 (3–5 Sätze): Passung zu Stack/Produkt/Arbeitsweise. Nenne 2–3 Qualifikationen mit mini‑Beleg. Keine Platzhalter. Keine Checklisten. Nimm alles aus dem Lebenslauf, NICHTS ERFINDEN!
+    [Absatz 1: 3–5 Sätze. Konkreter Bezug auf die Stelle/Quelle. Warum diese Rolle bei diesem Unternehmen jetzt? Verknüpfe 1–2 Anforderungen aus der Anzeige mit einer kurzen Erfahrung aus dem CV (Was? Wie? Ergebnis?). Natürlich, ohne Floskeln.]
 
-    Abschluss wie bei einem klassischen Anschreiben.
+    [Absatz 2: 3–5 Sätze. Wie passt dein Stack/Arbeitsweise konkret? Nenne 2–3 Qualifikationen mit Mini‑Beleg („Was? Wie? Ergebnis?“). Keine Platzhalter, keine generischen Phrasen.]
 
-    [Abschiedsformel]  („Mit freundlichen Grüßen“)
-    [Dein Name], Name aus Lebenslauf nehmen
+    Über die Einladung zu einem persönlichen Gespräch freue ich mich.
+
+    Mit freundlichen Grüßen
+
+    [Dein Name]
 
     Stil: {stil}
     Sprache: {language}
-
-    Gib ausschließlich den finalen Brieftext in genau dieser Blockreihenfolge aus, ohne Erklärungen.
     """
 
     response = client.chat.completions.create(
