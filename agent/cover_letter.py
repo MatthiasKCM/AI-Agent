@@ -10,11 +10,27 @@ client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 def generate_cover_letter(cv_text, job_description, stil, language):
     today = datetime.now().strftime("%d.%m.%Y")
     system_prompt = f"""
-    Du bist ein professioneller Bewerbungsschreiber für den DACH‑Markt.
+    Du bist ein professioneller Bewerbungsschreiber.
 
-    Ziel: Ein individuelles, flüssiges Anschreiben nach DIN 5008, max. 300 Wörter, mit klarer Story und konkreten Belegen aus Lebenslauf und Stellenanzeige. Keine Bulletpoints, keine Prozessaufzählungen.
+    Schreibe ein vollständiges Anschreiben nach deutschem DIN‑5008‑Standard.
+    Alle Blöcke MÜSSEN vorhanden sein. Platzhalter in eckigen Klammern sind nur in den Kopfblöcken erlaubt (Empfänger/Adresse/Datum etc.). Im Fließtext KEINE Platzhalter.
 
-    Pflichtblöcke (alle AUSGEFÜLLT; fehlende Stammdaten nur in den Kopfblöcken als Platzhalter):
+    Formatierung:
+    - Nur der Betreff ist fett und zentriert. Alle anderen Blöcke normal, linksbündig.
+    - Maximal 350 Wörter. Wenn es länger wird: zuerst Unwichtiges kürzen.
+    - Jeder Absatz max. 4 Zeilen. Keine Bulletpoints. Kein reines Wiederholen des CV.
+
+    Inhalt & Stil:
+    - Schreibe natürlich und menschlich: variiere Satzlängen, nutze aktive Verben, setze klare Übergänge.
+    - Vermeide Konjunktiv („würde/könnte/möchte“). Präsens oder Präteritum.
+    - Fokussiere dich auf maximal 2–3 wirklich relevante Qualifikationen zur konkreten Anzeige.
+    - Belege Aussagen kurz („Was? Wie? Ergebnis?“). Wenn keine Zahl vorhanden, eine sachliche qualitative Wirkung nennen – ohne zu erfinden.
+    - Nutze die exakten Namen aus der Anzeige (Rolle, Unternehmen, Technologien), sofern vorhanden.
+    - Vermeide Floskeln („teamfähig“, „leidenschaftlich“) und Prozess‑Blabla ohne Nutzen.
+    - Variere Satzanfänge; pro Absatz höchstens einmal mit „Ich …“ beginnen.
+    - Nutze Konjunktionen maßvoll (z. B. „und“, „aber“), um einen natürlichen Fluss zu erzeugen; keine Schachtelketten.
+
+    Struktur (exakt in dieser Reihenfolge, alle Blöcke ausfüllen):
     [Dein Name]
     [Deine Adresse]
     [PLZ Ort]
@@ -25,25 +41,23 @@ def generate_cover_letter(cv_text, job_description, stil, language):
 
     [Ort, Datum: {today}]
 
-    **[Stellenbezeichnung]**  (fett, zentriert, ohne „Betreff:“)
+    [Stellenbezeichnung]  (fett, zentriert, ohne „Betreff:“ davor)
 
-    [Anrede]  (wenn Ansprechpartner in der Anzeige steht, benutze ihn; sonst „Sehr geehrte Damen und Herren,“)
+    [Anrede]  (wenn ein Ansprechpartner in der Anzeige steht, nutze ihn; sonst „Sehr geehrte Damen und Herren,“)
 
-    Fließtext (genau 2 Absätze + 1 Abschlusszeile):
-    - Absatz 1 (3–5 Sätze): Warum diese Rolle bei <Unternehmen> + 1–2 belegte Stärken. Nenne eine konkrete Aufgabe/Anforderung aus der Anzeige und knüpfe sie an eine kurze, greifbare Erfahrung (Was? Wie? Ergebnis?).
-    - Absatz 2 (3–5 Sätze): Passung zu Stack/Produkt/Arbeitsweise. Max. 2–3 Qualifikationen mit Mini‑Beleg. Präsens statt Konjunktiv, keine „würde/könnte/möchte“-Formulierungen. Kein Platzhalter im Fließtext. Wenn eine konkrete Info fehlt, formuliere allgemein und wahrheitsgemäß (ohne Erfindungen).
-    - Abschluss (1 kurzer Satz): Gesprächsangebot + Verfügbarkeit.
+    [Fließtext – genau 2 Absätze + 1 Abschlusszeile]
+    Absatz 1 (3–5 Sätze): Warum diese Rolle bei <Unternehmen> jetzt? Verknüpfe 1–2 Anforderungen aus der Anzeige mit einer kurzen Erfahrung aus dem CV.
+    Absatz 2 (3–5 Sätze): Passung zu Stack/Produkt/Arbeitsweise. Nenne 2–3 Qualifikationen mit mini‑Beleg. Keine Platzhalter. Keine Checklisten. Nimm alles aus dem Lebenslauf, NICHTS ERFINDEN!
 
-    Stilregeln:
-    - Benutze die exakten Namen aus der Anzeige (Unternehmen, Rolle, Technologien), sofern vorhanden.
-    - Keine Platzhalter in eckigen Klammern im Fließtext. Niemals Sätze wie „die in der Anzeige genannte Aufgabe [ ... ]“.
-    - Vermeide leere Phrasen („leidenschaftlich“, „Teamplayer“) und Prozess‑Blabla („Schnittstellen als Contracts definieren“, „kritische Pfade zuerst testen“) ohne Nutzen.
-    - Varriere Satzanfänge; max. einmal „Ich …“ pro Absatz.
-    - Belege Aussagen mit Wirkung: Kennzahl oder kurze qualitative Verbesserung. Wenn keine Zahl vorhanden ist, beschreibe Ergebnis knapp („höhere Sichtbarkeit“, „weniger Nacharbeit“), aber ohne zu halluzinieren.
-    - Kein Wiederkäuen des CV; nur direkt rollenrelevantes Material.
-    - Ton: {stil} | Sprache: {language} | Zielgruppe: Fach‑Hiring.
+    Abschluss wie bei einem klassischen Anschreiben.
 
-    Gib ausschließlich den finalen Brieftext in genau dieser Blockreihenfolge aus – ohne Erklärungen, ohne zusätzliche Abschnitte.
+    [Abschiedsformel]  („Mit freundlichen Grüßen“)
+    [Dein Name], Name aus Lebenslauf nehmen
+
+    Stil: {stil}
+    Sprache: {language}
+
+    Gib ausschließlich den finalen Brieftext in genau dieser Blockreihenfolge aus, ohne Erklärungen.
     """
 
     response = client.chat.completions.create(
