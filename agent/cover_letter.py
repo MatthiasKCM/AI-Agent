@@ -6,8 +6,45 @@ from datetime import datetime
 
 client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
+
 import re, urllib.request
 from html import unescape
+
+# ---------- Utility: safe length + light extraction ----------
+def _limit_chars(text: str, max_len: int = 12000) -> str:
+    """Hard-limit long texts to protect the API from 400/BadRequest due to context size."""
+    if not text:
+        return ""
+    t = text.strip()
+    if len(t) <= max_len:
+        return t
+    return t[:max_len] + " …"
+
+def _extract_relevant_sections(jd_text: str) -> str:
+    """
+    Try to keep only the most relevant parts of a job ad to reduce prompt size.
+    Looks for German section headers like Aufgaben/Profil/Wir bieten etc.
+    Falls back to a trimmed body.
+    """
+    if not jd_text:
+        return ""
+    # Normalize
+    text = jd_text.replace("\\r", "\\n")
+    # Heuristic split on common headers
+    sections = []
+    patterns = [
+        r"(Aufgaben|Ihre Aufgaben|Was dich erwartet).*?(?=\\n\\s*[-A-ZÄÖÜ].{0,40}:|\\Z)",
+        r"(Profil|Ihr Profil|Was du mitbringst|Anforderungen).*?(?=\\n\\s*[-A-ZÄÖÜ].{0,40}:|\\Z)",
+        r"(Wir bieten|Benefits|Das bieten wir).*?(?=\\n\\s*[-A-ZÄÖÜ].{0,40}:|\\Z)",
+        r"(Über uns|Das sind wir).*?(?=\\n\\s*[-A-ZÄÖÜ].{0,40}:|\\Z)",
+        r"(Tech-Stack|Technologien).*?(?=\\n\\s*[-A-ZÄÖÜ].{0,40}:|\\Z)"
+    ]
+    for pat in patterns:
+        m = re.search(pat, text, flags=re.I | re.S | re.M)
+        if m:
+            sections.append(m.group(0).strip())
+    joined = "\\n\\n".join(sections) if sections else text
+    return _limit_chars(joined, 8000)
 
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/124.0 Safari/537.36")
@@ -96,6 +133,10 @@ def generate_cover_letter(cv_text, job_description, stil, language):
     else:
         jd_text = jd_text_input
 
+    # Reduce payload to avoid BadRequest on overly long inputs
+    cv_text_short = _limit_chars(cv_text, 8000)
+    jd_text = _extract_relevant_sections(jd_text)
+
     # Sicherungen
     job_title = jd_meta.get("title") or "[Stellenbezeichnung]"
     company = jd_meta.get("company") or "[Unternehmen]"
@@ -157,19 +198,40 @@ Sprache: {language}
     # 4) Dem Modell den ANZEIGENTEXT wirklich geben (nicht nur URL)
     user_messages = [
         {"role": "system", "content": system_prompt},
-        {"role": "user", "content": f"LEBENSLAUF:\n{cv_text}"},
+        {"role": "user", "content": f"LEBENSLAUF (gekürzt):\n{cv_text_short}"},
         {"role": "user", "content": f"STELLENANZEIGE:\n{jd_text}"},
         {"role": "user", "content": "Erstelle jetzt das Anschreiben exakt im vorgegebenen Format."}
     ]
 
-    response = client.chat.completions.create(
-        model="gpt-5",
-        temperature=0.2,
-        presence_penalty=0,
-        frequency_penalty=0,
-        messages=user_messages
-    )
-    return response.choices[0].message.content
+    try:
+        response = client.chat.completions.create(
+            model="gpt-5",
+            temperature=0.2,
+            presence_penalty=0,
+            frequency_penalty=0,
+            max_tokens=900,
+            messages=user_messages
+        )
+        return response.choices[0].message.content
+    except Exception:
+        # Fallback: further trim inputs and retry; also try a broadly available model
+        cv_text_shorter = _limit_chars(cv_text_short, 4000)
+        jd_text_shorter = _limit_chars(jd_text, 5000)
+        user_messages_fallback = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"LEBENSLAUF (gekürzt):\n{cv_text_shorter}"},
+            {"role": "user", "content": f"STELLENANZEIGE (gekürzt):\n{jd_text_shorter}"},
+            {"role": "user", "content": "Erstelle jetzt das Anschreiben exakt im vorgegebenen Format."}
+        ]
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            temperature=0.2,
+            presence_penalty=0,
+            frequency_penalty=0,
+            max_tokens=900,
+            messages=user_messages_fallback
+        )
+        return response.choices[0].message.content
 
 def check_cv(cv_text):
     prompt = """
