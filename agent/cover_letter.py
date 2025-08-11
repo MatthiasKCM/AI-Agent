@@ -12,9 +12,9 @@ def generate_cover_letter(cv_text, job_description, stil, language):
     system_prompt = f"""
     Du bist ein professioneller Bewerbungsschreiber für den DACH‑Markt.
 
-    Ziel: Ein individuelles, flüssig lesbares Anschreiben nach DIN 5008, maximal 300 Wörter, mit klarer Storyline und konkreten Belegen aus CV/Anzeige. Keine Bulletpoints.
+    Ziel: Ein individuelles, flüssiges Anschreiben nach DIN 5008, max. 300 Wörter, mit klarer Story und konkreten Belegen aus Lebenslauf und Stellenanzeige. Keine Bulletpoints, keine Prozessaufzählungen.
 
-    Layout & Pflichtblöcke (alle AUSGEFÜLLT, fehlendes mit klaren Platzhaltern in eckigen Klammern):
+    Pflichtblöcke (alle AUSGEFÜLLT; fehlende Stammdaten nur in den Kopfblöcken als Platzhalter):
     [Dein Name]
     [Deine Adresse]
     [PLZ Ort]
@@ -27,23 +27,23 @@ def generate_cover_letter(cv_text, job_description, stil, language):
 
     **[Stellenbezeichnung]**  (fett, zentriert, ohne „Betreff:“)
 
-    [Anrede]  (falls Ansprechpartner in der Anzeige erkennbar, benutze ihn; sonst „Sehr geehrte Damen und Herren,“)
+    [Anrede]  (wenn Ansprechpartner in der Anzeige steht, benutze ihn; sonst „Sehr geehrte Damen und Herren,“)
 
-    [Fließtext mit 2 Absätzen + kurzer Abschlusszeile]
-    - Absatz 1: Relevanz-Statement (warum diese Rolle + 1–2 belegte Stärken). Verknüpfe Jobanforderung mit 1 Mini‑Beispiel (Was? Wie? Ergebnis?).
-    - Absatz 2: Technische/Methoden‑Passung (max. 2–3 Qualifikationen), Bezug zum Stack/Produkt, Lernkurve nur wenn nötig. Nenne 1 konkrete Schnittstelle/Aufgabe aus der Anzeige und wie du sie angehst.
-    - Abschluss (1 Satz): Gesprächsangebot + Verfügbarkeit.
+    Fließtext (genau 2 Absätze + 1 Abschlusszeile):
+    - Absatz 1 (3–5 Sätze): Warum diese Rolle bei <Unternehmen> + 1–2 belegte Stärken. Nenne eine konkrete Aufgabe/Anforderung aus der Anzeige und knüpfe sie an eine kurze, greifbare Erfahrung (Was? Wie? Ergebnis?).
+    - Absatz 2 (3–5 Sätze): Passung zu Stack/Produkt/Arbeitsweise. Max. 2–3 Qualifikationen mit Mini‑Beleg. Präsens statt Konjunktiv, keine „würde/könnte/möchte“-Formulierungen. Kein Platzhalter im Fließtext. Wenn eine konkrete Info fehlt, formuliere allgemein und wahrheitsgemäß (ohne Erfindungen).
+    - Abschluss (1 kurzer Satz): Gesprächsangebot + Verfügbarkeit.
 
-    Formalia & Stil:
-    - Flüssige Übergänge, variierende Satzlängen. Keine Phrasen („Teamplayer“, „leidenschaftlich“ etc.).
-    - Jede Aussage möglichst mit Wirkung unterlegt (Kennzahl, Resultat, Prozessverbesserung). Wenn keine Zahl im CV/der Anzeige, kurze qualitative Wirkung nennen.
-    - Keine Wiederholung reiner CV‑Aufzählung. Keine Auflistungen/Bullets. Max. 4 Zeilen pro Absatz.
-    - Höchstens 2–3 wirklich relevante Qualifikationen; alles andere weglassen.
+    Stilregeln:
+    - Benutze die exakten Namen aus der Anzeige (Unternehmen, Rolle, Technologien), sofern vorhanden.
+    - Keine Platzhalter in eckigen Klammern im Fließtext. Niemals Sätze wie „die in der Anzeige genannte Aufgabe [ ... ]“.
+    - Vermeide leere Phrasen („leidenschaftlich“, „Teamplayer“) und Prozess‑Blabla („Schnittstellen als Contracts definieren“, „kritische Pfade zuerst testen“) ohne Nutzen.
+    - Varriere Satzanfänge; max. einmal „Ich …“ pro Absatz.
+    - Belege Aussagen mit Wirkung: Kennzahl oder kurze qualitative Verbesserung. Wenn keine Zahl vorhanden ist, beschreibe Ergebnis knapp („höhere Sichtbarkeit“, „weniger Nacharbeit“), aber ohne zu halluzinieren.
+    - Kein Wiederkäuen des CV; nur direkt rollenrelevantes Material.
     - Ton: {stil} | Sprache: {language} | Zielgruppe: Fach‑Hiring.
-    - Vermeide gehäufte Füllwörter. Konjunktionen sind erlaubt, aber nicht aneinanderreihen.
-    - Wenn Informationen fehlen (z. B. Ansprechpartner, Adresse, Tech‑Stack), nutze präzise Platzhalter in eckigen Klammern, niemals Blöcke auslassen.
 
-    Gib ausschließlich den finalen Brieftext in genau dieser Blockreihenfolge aus, ohne zusätzliche Erklärungen.
+    Gib ausschließlich den finalen Brieftext in genau dieser Blockreihenfolge aus – ohne Erklärungen, ohne zusätzliche Abschnitte.
     """
 
     response = client.chat.completions.create(
@@ -59,9 +59,19 @@ def generate_cover_letter(cv_text, job_description, stil, language):
 
 def check_cv(cv_text):
     prompt = """
-    Du bist ein erfahrener Karriereberater. Analysiere diesen Lebenslauf auf Schwächen, Lücken, Unklarheiten oder Verbesserungspotenzial.
-    Gib konkrete, praxisnahe Verbesserungsvorschläge. Antworte stichpunktartig und ehrlich.
+    Du bist ein erfahrener DACH‑Karriereberater. Analysiere den Lebenslauf prägnant und ehrlich.
+    Liefere klare Handlungsanweisungen, keine Allgemeinplätze.
+
+    Strukturiere deine Antwort in genau diesen Abschnitten:
+    1) Red Flags & Lücken (stichpunktartig, mit kurzer Begründung)
+    2) Wirkung verstärken (wo Kennzahlen, Outcomes, Verantwortungsumfang ergänzt werden können; konkrete Beispiele nennen)
+    3) Inhaltliche Schärfung (überflüssige Punkte streichen/verdichten; Dopplungen; deutsche Terminologie vereinheitlichen)
+    4) ATS & Lesbarkeit (Datei‑/Sektionstitel, Keywords aus typischen Anzeigen, konsistente Zeitformen)
+    5) To‑dos (konkrete Änderungsbefehle im Imperativ, je 1 Zeile)
+
+    Beziehe dich auf den tatsächlichen CV‑Text. Wenn Infos fehlen, fordere gezielt nach („Fehlt: Zeitraum bei Projekt X“, „Fehlt: Tech‑Stack bei Rolle Y“).
     """
+
     response = client.chat.completions.create(
         model="gpt-5",
         #Liste mit Dics
