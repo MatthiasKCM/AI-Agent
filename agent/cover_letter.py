@@ -133,9 +133,10 @@ def generate_cover_letter(cv_text, job_description, stil, language):
     else:
         jd_text = jd_text_input
 
-    # Reduce payload to avoid BadRequest on overly long inputs
-    cv_text_short = _limit_chars(cv_text, 8000)
+    # Reduce payload to avoid BadRequest on overly long inputs (stricter limits)
+    cv_text_short = _limit_chars(cv_text, 4000)
     jd_text = _extract_relevant_sections(jd_text)
+    jd_text = _limit_chars(jd_text, 4000)
 
     # Sicherungen
     job_title = jd_meta.get("title") or "[Stellenbezeichnung]"
@@ -215,8 +216,8 @@ Sprache: {language}
         return response.choices[0].message.content
     except Exception:
         # Fallback: further trim inputs and retry; also try a broadly available model
-        cv_text_shorter = _limit_chars(cv_text_short, 4000)
-        jd_text_shorter = _limit_chars(jd_text, 5000)
+        cv_text_shorter = _limit_chars(cv_text_short, 2000)
+        jd_text_shorter = _limit_chars(jd_text, 3000)
         user_messages_fallback = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": f"LEBENSLAUF (gekürzt):\n{cv_text_shorter}"},
