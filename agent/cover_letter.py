@@ -61,7 +61,7 @@ def generate_cover_letter(cv_text, job_description, stil, language):
     """
 
     response = client.chat.completions.create(
-        model="gpt-5",
+        model="gpt-4o-mini",
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": f"LEBENSLAUF:\n{cv_text}"},
@@ -77,7 +77,7 @@ def check_cv(cv_text):
     Gib konkrete, praxisnahe Verbesserungsvorschläge. Antworte stichpunktartig und ehrlich.
     """
     response = client.chat.completions.create(
-        model="gpt-5",
+        model="gpt-4o-mini",
         messages=[
             {"role": "system", "content": prompt},
             {"role": "user", "content": f"LEBENSLAUF:\n{cv_text}"},
@@ -92,7 +92,7 @@ def uniqueness_check(letter):
     Bewerte zuerst kurz (1 Satz). Dann liste bitte stichpunktartig die Passagen oder Formulierungen, die besonders generisch oder austauschbar wirken – und schlage für jeden Punkt eine bessere, individuellere Alternative vor.
     """
     response = client.chat.completions.create(
-        model="gpt-5",
+        model="gpt-4o-mini",
         messages=[
             {"role": "system", "content": prompt},
             {"role": "user", "content": f"ANSCHREIBEN:\n{letter}"},
@@ -113,7 +113,7 @@ def improve_letter(letter, kritikpunkte):
     {kritikpunkte}
     """
     response = client.chat.completions.create(
-        model="gpt-5",
+        model="gpt-4o-mini",
         messages=[
             {"role": "system", "content": prompt},
             {"role": "user", "content": "Verbessere das Anschreiben entsprechend."}
