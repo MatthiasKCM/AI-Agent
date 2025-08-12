@@ -69,12 +69,26 @@ if cv_file and st.button("🕵️ Lebenslauf checken"):
         st.error("❌ Konnte den Lebenslauf nicht lesen.")
         st.exception(e)
 
-# Anschreiben generieren
+# Anschreiben generieren (mit Fail-Fast für Indeed & Statusanzeige)
 if st.button("✍️ Anschreiben generieren") and cv_file and (job_url or job_plain):
     try:
         cv_text = extract_text_from_pdf(cv_file)
-        source = job_url.strip() if job_url else job_plain.strip()
-        st.session_state['letter'] = generate_cover_letter(cv_text, source, stil, language)
+
+        # Fail-fast: Indeed blockiert häufig → direkten Text verlangen
+        if job_url and "indeed." in job_url.lower() and not job_plain.strip():
+            st.error("Diese URL wird von der Zielseite geblockt. Bitte den **reinen Text** der Anzeige im Tab „Anzeigentext einfügen“ einfügen.")
+            st.stop()
+
+        source = job_plain.strip() if (job_url and "indeed." in job_url.lower()) else (
+            job_url.strip() if job_url else job_plain.strip()
+        )
+        if not source:
+            st.error("Kein Inhalt gefunden. Bitte URL oder Anzeigentext angeben.")
+            st.stop()
+
+        with st.status("⏳ Erstelle Anschreiben …", expanded=False) as status:
+            st.session_state['letter'] = generate_cover_letter(cv_text, source, stil, language)
+            status.update(label="✅ Anschreiben erstellt", state="complete")
         st.success("✅ Anschreiben erstellt!")
     except Exception as e:
         st.error("❌ Konnte die Stellenanzeige nicht verarbeiten. "
@@ -89,8 +103,12 @@ st.warning(
 
 # Ergebnis / Nachbearbeitung
 if 'letter' in st.session_state and st.session_state['letter']:
-    edited_letter = st.text_area("📄 Ergebnis (bearbeitbar)", value=st.session_state['letter'],
-                                 height=500, key="editable_letter")
+    edited_letter = st.text_area(
+        "📄 Ergebnis (bearbeitbar)",
+        value=st.session_state['letter'],
+        height=500,
+        key="editable_letter"
+    )
     st.session_state['letter'] = edited_letter
 
     # Einzigartigkeit

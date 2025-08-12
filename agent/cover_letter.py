@@ -1,17 +1,17 @@
 # agent/cover_letter.py
-import os, json, re, requests
+import os, json, re, requests, time
 from datetime import datetime
 from bs4 import BeautifulSoup
-from openai import OpenAI, BadRequestError  # wichtig: Fehlerklasse importieren
+from openai import OpenAI, BadRequestError
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+# OpenAI-Client mit hartem Timeout (Sek.)
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"), timeout=30)
 
-# ---------- Universeller Chat-Wrapper (fix für Modelle ohne Sampling-Parameter) ----------
+# Domains, die wir nicht scrapen (sofort abbrechen)
+DOMAIN_BLOCKLIST = ("indeed.",)
+
+# ---------- universeller Chat-Wrapper (entfernt verbotene Sampling-Params) ----------
 def _chat(messages, model="gpt-5", **kwargs):
-    """
-    Ruft /chat/completions auf. Wenn das Modell Sampling-Parameter (temperature/top_p/penalties)
-    nicht unterstützt, werden sie automatisch entfernt und der Call erneut gesendet.
-    """
     try:
         return client.chat.completions.create(model=model, messages=messages, **kwargs)
     except BadRequestError as e:
@@ -22,7 +22,7 @@ def _chat(messages, model="gpt-5", **kwargs):
             return client.chat.completions.create(model=model, messages=messages, **kwargs)
         raise
 
-# ---------- Globale Prompt-Konstante ----------
+# ---------- Prompt-Konstante ----------
 EXTRACT_PROMPT = """Du bist Recruiter. Extrahiere strukturierte Kerndaten aus der Stellenanzeige.
 Gib NUR gültiges JSON zurück mit genau diesen Keys:
 {"company":"","role":"","location":"","contact_person":"","language":"","must_have":[ ],
@@ -35,8 +35,12 @@ Regeln:
 - Leere Felder mit "" oder [].
 """
 
-# ---------- Fetch (robust mit Headern + Fallback) ----------
+# ---------- Fetch (kurze Timeouts, 1 Retry, Proxy-Fallback) ----------
 def _fetch_job_text(job_url: str) -> str:
+    lu = job_url.lower()
+    if any(d in lu for d in DOMAIN_BLOCKLIST):
+        raise RuntimeError("Diese Domain blockt automatisches Laden. Bitte den Anzeigentext manuell einfügen.")
+
     headers = {
         "User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                        "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -47,30 +51,33 @@ def _fetch_job_text(job_url: str) -> str:
     }
 
     def _try(url: str):
-        r = requests.get(url, headers=headers, timeout=20, allow_redirects=True)
+        # kurze Verbindungs-/Lesetimeouts
+        r = requests.get(url, headers=headers, timeout=(5, 8), allow_redirects=True)
         if r.status_code == 200 and r.text and len(r.text) > 2000:
             return r.text
         r.raise_for_status()
         return r.text
 
     html = ""
-    try:
-        html = _try(job_url)
-    except Exception:
-        pass
+    for attempt in range(2):  # max. 1 Retry
+        try:
+            html = _try(job_url)
+            break
+        except Exception:
+            time.sleep(0.6)
 
-    # Fallback-Proxy: Plaintext (hilft bei Anti-Bot/JS)
+    # Proxy-Fallback (Plaintext)
     if not html:
         try:
             proxy_url = f"https://r.jina.ai/{job_url}"
-            proxied = requests.get(proxy_url, headers=headers, timeout=20)
+            proxied = requests.get(proxy_url, headers=headers, timeout=(5, 8))
             if proxied.status_code == 200 and len(proxied.text) > 500:
-                return proxied.text[:40000]  # bereits Plaintext
+                return proxied.text[:40000]  # Plaintext
         except Exception:
             pass
 
     if not html:
-        raise RuntimeError("Stellenanzeige konnte nicht geladen werden (Anti-Bot/403).")
+        raise RuntimeError("Stellenanzeige konnte nicht geladen werden (Anti-Bot/Timeout).")
 
     soup = BeautifulSoup(html, "html.parser")
     texts = [t.get_text(" ", strip=True) for t in soup.find_all(
@@ -83,6 +90,8 @@ def _fetch_job_text(job_url: str) -> str:
 
 # ---------- Extract ----------
 def _extract_job_json(job_text: str) -> dict:
+    # Eingabetext begrenzen (Kosten & Laufzeit)
+    job_text = job_text[:20000]
     resp = _chat(
         model="gpt-5",
         temperature=0.2, top_p=0.9, frequency_penalty=0.1,
@@ -112,6 +121,7 @@ def _distill_cv(cv_text: str, job: dict) -> str:
     focus = "; ".join(focus_list) if focus_list else "Rollenpassung allgemein"
     prompt = f"""Ziehe aus diesem CV nur Belege für folgende Schwerpunkte: {focus}.
 Gib 2–3 ultrakurze, faktenreiche Sätze aus, keine Listen, keine Floskeln."""
+    cv_text = cv_text[:20000]
     resp = _chat(
         model="gpt-5", temperature=0.3,
         messages=[{"role": "system", "content": prompt},
@@ -194,11 +204,13 @@ Behalte Inhalt, aber kürze präzise. DIN-5008 Struktur unverändert lassen. Gib
 def generate_cover_letter(cv_text: str, job_url_or_text: str, stil: str, language: str) -> str:
     """
     Akzeptiert entweder eine URL (http/https) ODER bereits eingefügten Anzeigentext.
+    Fail-fast: blocklisted Domains (z. B. Indeed) -> RuntimeError.
     """
-    if job_url_or_text.strip().lower().startswith(("http://", "https://")):
-        job_text = _fetch_job_text(job_url_or_text.strip())
+    source = job_url_or_text.strip()
+    if source.lower().startswith(("http://", "https://")):
+        job_text = _fetch_job_text(source)
     else:
-        job_text = job_url_or_text.strip()  # User hat Plaintext eingefügt
+        job_text = source  # Plaintext
 
     job_json = _extract_job_json(job_text)
     cv_focus = _distill_cv(cv_text, job_json)
@@ -213,7 +225,7 @@ Antworte stichpunktartig und ehrlich."""
     resp = _chat(
         model="gpt-5", temperature=0.3,
         messages=[{"role": "system", "content": prompt},
-                  {"role": "user", "content": cv_text}]
+                  {"role": "user", "content": cv_text[:20000]}]
     )
     return resp.choices[0].message.content
 
@@ -223,7 +235,7 @@ Bewerte kurz (1 Satz). Liste stichpunktartig generische Passagen und gib jeweils
     resp = _chat(
         model="gpt-5", temperature=0.3,
         messages=[{"role": "system", "content": prompt},
-                  {"role": "user", "content": f"ANSCHREIBEN:\n{letter}"}]
+                  {"role": "user", "content": f"ANSCHREIBEN:\n{letter[:12000]}"}]
     )
     return resp.choices[0].message.content
 
@@ -232,10 +244,10 @@ def improve_letter(letter: str, kritikpunkte: str) -> str:
 Mache es spezifisch, entferne jede Floskel. Gib NUR den neuen Text zurück.
 
 Anschreiben:
-{letter}
+{letter[:12000]}
 
 Kritikpunkte:
-{kritikpunkte}
+{kritikpunkte[:8000]}
 """
     resp = _chat(
         model="gpt-5", temperature=0.3,
