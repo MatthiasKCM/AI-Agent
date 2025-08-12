@@ -7,6 +7,7 @@ import streamlit.components.v1 as components
 
 st.set_page_config(page_title="KI-Bewerbungs-Agent", page_icon="🧠")
 
+# Hintergrund
 st.markdown(
     """
     <style>
@@ -20,6 +21,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 
+# Google Analytics
 GA_ID = "G-NW6J93TNXC"
 components.html(
     f"""
@@ -36,65 +38,94 @@ components.html(
 
 st.title("🧠 KI-Bewerbungs-Agent")
 
-st.success("""
-🎯 **So funktioniert’s in 5 Schritten:**
-1. Lebenslauf als PDF hochladen
-2. Stellenanzeige-URL einfügen
-3. Stil und Sprache auswählen
-4. Auf „Anschreiben generieren“ klicken
-5. Anschreiben prüfen, anpassen und als PDF exportieren
-""")
+st.success(
+    "🎯 **So funktioniert’s in 5 Schritten:**\n"
+    "1. Lebenslauf als PDF hochladen\n"
+    "2. Stellenanzeige-URL **oder** Anzeigentext einfügen\n"
+    "3. Stil und Sprache wählen\n"
+    "4. „Anschreiben generieren“ klicken\n"
+    "5. Prüfen, verbessern, als PDF exportieren"
+)
 
+# Eingaben
 cv_file = st.file_uploader("📎 Lebenslauf (PDF)")
-job_url = st.text_input("🔗 Stellenanzeige-URL (Indeed, Firmenkarriere, etc.)")
+
+tab_url, tab_text = st.tabs(["🔗 URL einfügen", "🧾 Anzeigentext einfügen"])
+with tab_url:
+    job_url = st.text_input("Stellenanzeige-URL (Indeed, Firmenkarriere, LinkedIn, etc.)")
+with tab_text:
+    job_plain = st.text_area("Reinen Text der Stellenanzeige hier einfügen")
+
 stil = st.selectbox("Stil wählen", ["Formell", "Kreativ", "Selbstbewusst"])
 language = st.selectbox("Sprache wählen", ["Deutsch", "Englisch", "Französisch"])
 
 # Lebenslauf-Check
 if cv_file and st.button("🕵️ Lebenslauf checken"):
-    cv_text = extract_text_from_pdf(cv_file)
-    cv_feedback = check_cv(cv_text)
-    st.info("CV-Check:\n" + cv_feedback)
-
-# Anschreiben generieren
-if st.button("✍️ Anschreiben generieren") and cv_file and job_url:
     try:
         cv_text = extract_text_from_pdf(cv_file)
-        st.session_state['letter'] = generate_cover_letter(cv_text, job_url, stil, language)
-        st.success("✅ Anschreiben erstellt!")
+        cv_feedback = check_cv(cv_text)
+        st.info("CV-Check:\n" + cv_feedback)
     except Exception as e:
-        st.error("❌ Konnte die Stellenanzeige nicht laden (möglicher Anti-Bot-Block). "
-                 "Bitte füge den **reinen Text** der Anzeige ein oder probiere eine andere URL.")
+        st.error("❌ Konnte den Lebenslauf nicht lesen.")
         st.exception(e)
 
+# Anschreiben generieren
+if st.button("✍️ Anschreiben generieren") and cv_file and (job_url or job_plain):
+    try:
+        cv_text = extract_text_from_pdf(cv_file)
+        source = job_url.strip() if job_url else job_plain.strip()
+        st.session_state['letter'] = generate_cover_letter(cv_text, source, stil, language)
+        st.success("✅ Anschreiben erstellt!")
+    except Exception as e:
+        st.error("❌ Konnte die Stellenanzeige nicht verarbeiten. "
+                 "Nutze den Tab **„Anzeigentext einfügen“** oder probiere eine andere URL.")
+        st.exception(e)
 
-st.warning("""
-⚠️ **Hinweis:** Platzhalter (z. B. `[Empfänger-Adresse]`) erscheinen, wenn Infos fehlen.
-Bitte alle Platzhalter vor dem Versenden ersetzen.
-""")
+# Hinweis zu Platzhaltern
+st.warning(
+    "⚠️ **Hinweis:** Platzhalter (z. B. `[Empfänger-Adresse]`) erscheinen, wenn Infos fehlen. "
+    "Bitte vor dem Versenden ersetzen."
+)
 
+# Ergebnis / Nachbearbeitung
 if 'letter' in st.session_state and st.session_state['letter']:
-    edited_letter = st.text_area("📄 Ergebnis (bearbeitbar)", value=st.session_state['letter'], height=500, key="editable_letter")
+    edited_letter = st.text_area("📄 Ergebnis (bearbeitbar)", value=st.session_state['letter'],
+                                 height=500, key="editable_letter")
     st.session_state['letter'] = edited_letter
 
+    # Einzigartigkeit
     if st.button("🕵️‍♂️ Einzigartigkeit prüfen"):
-        unique = uniqueness_check(st.session_state['letter'])
-        st.session_state['kritikpunkte'] = unique
-        st.info("Plagiat-Check & Kritikpunkte:\n" + unique)
+        try:
+            unique = uniqueness_check(st.session_state['letter'])
+            st.session_state['kritikpunkte'] = unique
+            st.info("Plagiat-Check & Kritikpunkte:\n" + unique)
+        except Exception as e:
+            st.error("❌ Prüfen der Einzigartigkeit fehlgeschlagen.")
+            st.exception(e)
 
+    # Auto-Verbesserung
     if 'kritikpunkte' in st.session_state and st.session_state['kritikpunkte']:
         if st.button("💡 Kritikpunkte automatisch verbessern"):
-            improved_letter = improve_letter(st.session_state['letter'], st.session_state['kritikpunkte'])
-            st.session_state['letter'] = improved_letter
-            st.success("✅ Verbesserte Version erstellt!")
-            st.text_area("📄 Neue Version", value=improved_letter, height=500)
+            try:
+                improved_letter = improve_letter(st.session_state['letter'], st.session_state['kritikpunkte'])
+                st.session_state['letter'] = improved_letter
+                st.success("✅ Verbesserte Version erstellt!")
+                st.text_area("📄 Neue Version", value=improved_letter, height=500)
+            except Exception as e:
+                st.error("❌ Verbesserung fehlgeschlagen.")
+                st.exception(e)
 
+    # PDF-Export
     if st.button("📄 PDF-Export"):
-        filename = create_pdf(st.session_state['letter'])
-        with open(filename, "rb") as f:
-            st.download_button(
-                label="Download PDF",
-                data=f,
-                file_name=filename,
-                mime="application/pdf"
-            )
+        try:
+            filename = create_pdf(st.session_state['letter'])
+            with open(filename, "rb") as f:
+                st.download_button(
+                    label="Download PDF",
+                    data=f,
+                    file_name=filename,
+                    mime="application/pdf"
+                )
+        except Exception as e:
+            st.error("❌ PDF-Export fehlgeschlagen.")
+            st.exception(e)

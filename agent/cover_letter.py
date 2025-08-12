@@ -6,69 +6,73 @@ from openai import OpenAI
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# ---------- Fetch ----------
+# ---------- Globale Prompt-Konstante (FIX für NameError) ----------
+EXTRACT_PROMPT = """Du bist Recruiter. Extrahiere strukturierte Kerndaten aus der Stellenanzeige.
+Gib NUR gültiges JSON zurück mit genau diesen Keys:
+{"company":"","role":"","location":"","contact_person":"","language":"","must_have":[ ],
+"top_tasks":[ ],"benefits":[ ],"culture_notes":""}
+Regeln:
+- must_have: max 3 Muss-Kriterien (präzise).
+- top_tasks: max 3 konkrete Aufgaben.
+- benefits: max 3 kurze Punkte.
+- language: "de" oder "en".
+- Leere Felder mit "" oder [].
+"""
+
 # ---------- Fetch (robust mit Headern + Fallback) ----------
 def _fetch_job_text(job_url: str) -> str:
     import urllib.parse as up
     headers = {
-        "User-Agent": (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/124.0.0.0 Safari/537.36"
-        ),
+        "User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                       "AppleWebKit/537.36 (KHTML, like Gecko) "
+                       "Chrome/124.0.0.0 Safari/537.36"),
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7",
-        "Cache-Control": "no-cache",
-        "Pragma": "no-cache",
+        "Cache-Control": "no-cache","Pragma": "no-cache",
     }
 
     def _try(url: str):
         r = requests.get(url, headers=headers, timeout=20, allow_redirects=True)
-        # viele Sites geben 200 + leeren Body -> fallback erzwingen
         if r.status_code == 200 and r.text and len(r.text) > 2000:
             return r.text
-        r.raise_for_status()  # wirft HTTPError -> Fallback
+        r.raise_for_status()
         return r.text
 
-    # 1) Direktabruf
+    html = ""
     try:
         html = _try(job_url)
     except Exception:
-        html = ""
+        pass
 
-    # 2) Fallback über r.jina.ai (liefert reinen Text aus dem Web)
+    # Fallback-Proxy: Plaintext
     if not html:
         try:
-            parsed = up.urlparse(job_url)
-            # r.jina.ai erwartet http/https nicht doppelt – wir geben die Ziel-URL roh durch
             proxy_url = f"https://r.jina.ai/{job_url}"
             proxied = requests.get(proxy_url, headers=headers, timeout=20)
             if proxied.status_code == 200 and len(proxied.text) > 500:
-                # der Proxy gibt Plaintext zurück – verpacken, damit der Extraktor was hat
-                return proxied.text[:40000]
+                return proxied.text[:40000]  # ist bereits Plaintext
         except Exception:
             pass
 
     if not html:
-        raise RuntimeError("Stellenanzeige konnte nicht geladen werden (Block durch Zielseite). Bitte Text der Anzeige einfügen oder eine andere URL probieren.")
+        raise RuntimeError("Stellenanzeige konnte nicht geladen werden (Anti-Bot/403).")
 
-    # regulärer BeautifulSoup-Flow
     soup = BeautifulSoup(html, "html.parser")
     texts = [t.get_text(" ", strip=True) for t in soup.find_all(
         ["h1","h2","h3","p","li","div","span","section","article"]
     )]
     long_text = "\n".join([t for t in texts if t and len(t.split()) > 3])
-    # Notfallback: Wenn HTML leer war, lange genug war aber (z.B. Script-Only), nimm Roh-HTML
     if len(long_text) < 500:
         long_text = soup.get_text(" ", strip=True)
     return long_text[:40000]
 
-
+# ---------- Extract ----------
 def _extract_job_json(job_text: str) -> dict:
+    # job_text kann HTML-Extrakt ODER Proxy-Plaintext sein
     resp = client.chat.completions.create(
         model="gpt-5",
         temperature=0.2, top_p=0.9, frequency_penalty=0.1,
-        messages=[{"role":"system","content":_EXTRACT_PROMPT},
+        messages=[{"role":"system","content":EXTRACT_PROMPT},
                   {"role":"user","content":job_text}]
     )
     raw = resp.choices[0].message.content.strip()
@@ -76,10 +80,11 @@ def _extract_job_json(job_text: str) -> dict:
         return json.loads(raw)
     except Exception:
         m = re.search(r"\{.*\}", raw, re.S)
-        return json.loads(m.group(0)) if m else {
-            "company":"","role":"","location":"","contact_person":"","language":"",
-            "must_have":[],"top_tasks":[],"benefits":[],"culture_notes":""
-        }
+        if m:
+            try: return json.loads(m.group(0))
+            except Exception: pass
+        return {"company":"","role":"","location":"","contact_person":"","language":"",
+                "must_have":[],"top_tasks":[],"benefits":[],"culture_notes":""}
 
 # ---------- CV distill ----------
 def _distill_cv(cv_text: str, job: dict) -> str:
@@ -159,8 +164,15 @@ Behalte Inhalt, aber kürze präzise. DIN-5008 Struktur unverändert lassen. Gib
     return resp.choices[0].message.content.strip()
 
 # ---------- Public API ----------
-def generate_cover_letter(cv_text: str, job_url: str, stil: str, language: str) -> str:
-    job_text = _fetch_job_text(job_url)
+def generate_cover_letter(cv_text: str, job_url_or_text: str, stil: str, language: str) -> str:
+    """
+    Akzeptiert entweder eine URL (http/https) ODER bereits eingefügten Anzeigentext.
+    """
+    if job_url_or_text.strip().lower().startswith(("http://","https://")):
+        job_text = _fetch_job_text(job_url_or_text.strip())
+    else:
+        job_text = job_url_or_text.strip()  # User hat Plaintext eingefügt
+
     job_json = _extract_job_json(job_text)
     cv_focus = _distill_cv(cv_text, job_json)
     draft = _generate_letter(cv_focus, job_json, stil, language)
