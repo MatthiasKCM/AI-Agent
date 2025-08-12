@@ -44,17 +44,15 @@ st.success("""
 🎯 **So funktioniert’s in 5 Schritten:**
 
 1. Lebenslauf als PDF hochladen  
-2. Stellenanzeige kopieren & einfügen  
+2. Stellenanzeige kopieren & einfügen (kein Link)  
 3. Stil und Sprache auswählen  
 4. Auf „Anschreiben generieren“ klicken  
 5. Anschreiben prüfen, anpassen und als PDF exportieren
-
-*Fertig! Dein Anschreiben ist bereit zum Versenden.*
 """)
 
 # Frontend
 cv_file = st.file_uploader("📎 Lebenslauf (PDF)")
-job_text = st.text_area("🧾 Stellenanzeige einfügen")
+job_text = st.text_area("🧾 Stellenanzeige einfügen (bitte reinen Text, keine URL)")
 stil = st.selectbox("Stil wählen", ["Formell", "Kreativ", "Selbstbewusst"])
 language = st.selectbox("Sprache wählen", ["Deutsch", "Englisch", "Französisch"])
 
@@ -67,16 +65,27 @@ if cv_file:
 
 # Anschreiben generieren
 if st.button("✍️ Anschreiben generieren") and cv_file and job_text:
+    # Blockiere URLs generell und Indeed speziell
+    jt = job_text.strip()
+    lower = jt.lower()
+    if lower.startswith(("http://", "https://")):
+        if "indeed." in lower:
+            st.error("❌ Indeed blockt automatische Abrufe. Bitte den **reinen Text** der Stellenanzeige hier einfügen (kein Link).")
+            st.stop()
+        else:
+            st.error("❌ Bitte keinen Link einfügen. Kopiere den **reinen Text** der Stellenanzeige hier hinein.")
+            st.stop()
+
     cv_text = extract_text_from_pdf(cv_file)
-    st.session_state['letter'] = generate_cover_letter(cv_text, job_text, stil, language)
+    st.session_state['letter'] = generate_cover_letter(cv_text, jt, stil, language)
     st.success("✅ Anschreiben erstellt!")
 
 # Hinweis zu Platzhaltern
 st.warning("""
 ⚠️ **Wichtiger Hinweis:**  
-Im Anschreiben können Platzhalter (z. B. `[Unternehmensname]`, `[Plattformname]`, `[Teamname]`, `[Empfänger-Adresse]` etc.) erscheinen,  
-wenn entsprechende Infos im Lebenslauf oder in der Stellenanzeige fehlen.  
-**Bitte prüfe dein Anschreiben sorgfältig und ersetze alle Platzhalter durch die echten Namen und Daten, bevor du es versendest!**
+Im Anschreiben können Platzhalter (z. B. `[Unternehmensname]`, `[Plattformname]`, `[Teamname]`, `[Empfänger-Adresse]` etc.) erscheinen, 
+wenn entsprechende Infos im Lebenslauf oder in der Stellenanzeige fehlen. 
+**Bitte prüfe dein Anschreiben sorgfältig und ersetze alle Platzhalter durch echte Daten, bevor du es versendest!**
 """)
 
 # Anschreiben anzeigen, falls vorhanden
