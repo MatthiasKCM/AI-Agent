@@ -58,9 +58,15 @@ if cv_file and st.button("🕵️ Lebenslauf checken"):
 
 # Anschreiben generieren
 if st.button("✍️ Anschreiben generieren") and cv_file and job_url:
-    cv_text = extract_text_from_pdf(cv_file)
-    st.session_state['letter'] = generate_cover_letter(cv_text, job_url, stil, language)
-    st.success("✅ Anschreiben erstellt!")
+    try:
+        cv_text = extract_text_from_pdf(cv_file)
+        st.session_state['letter'] = generate_cover_letter(cv_text, job_url, stil, language)
+        st.success("✅ Anschreiben erstellt!")
+    except Exception as e:
+        st.error("❌ Konnte die Stellenanzeige nicht laden (möglicher Anti-Bot-Block). "
+                 "Bitte füge den **reinen Text** der Anzeige ein oder probiere eine andere URL.")
+        st.exception(e)
+
 
 st.warning("""
 ⚠️ **Hinweis:** Platzhalter (z. B. `[Empfänger-Adresse]`) erscheinen, wenn Infos fehlen.

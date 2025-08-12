@@ -7,28 +7,62 @@ from openai import OpenAI
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # ---------- Fetch ----------
+# ---------- Fetch (robust mit Headern + Fallback) ----------
 def _fetch_job_text(job_url: str) -> str:
-    r = requests.get(job_url, timeout=15)
-    r.raise_for_status()
-    soup = BeautifulSoup(r.text, "html.parser")
+    import urllib.parse as up
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/124.0.0.0 Safari/537.36"
+        ),
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7",
+        "Cache-Control": "no-cache",
+        "Pragma": "no-cache",
+    }
+
+    def _try(url: str):
+        r = requests.get(url, headers=headers, timeout=20, allow_redirects=True)
+        # viele Sites geben 200 + leeren Body -> fallback erzwingen
+        if r.status_code == 200 and r.text and len(r.text) > 2000:
+            return r.text
+        r.raise_for_status()  # wirft HTTPError -> Fallback
+        return r.text
+
+    # 1) Direktabruf
+    try:
+        html = _try(job_url)
+    except Exception:
+        html = ""
+
+    # 2) Fallback über r.jina.ai (liefert reinen Text aus dem Web)
+    if not html:
+        try:
+            parsed = up.urlparse(job_url)
+            # r.jina.ai erwartet http/https nicht doppelt – wir geben die Ziel-URL roh durch
+            proxy_url = f"https://r.jina.ai/{job_url}"
+            proxied = requests.get(proxy_url, headers=headers, timeout=20)
+            if proxied.status_code == 200 and len(proxied.text) > 500:
+                # der Proxy gibt Plaintext zurück – verpacken, damit der Extraktor was hat
+                return proxied.text[:40000]
+        except Exception:
+            pass
+
+    if not html:
+        raise RuntimeError("Stellenanzeige konnte nicht geladen werden (Block durch Zielseite). Bitte Text der Anzeige einfügen oder eine andere URL probieren.")
+
+    # regulärer BeautifulSoup-Flow
+    soup = BeautifulSoup(html, "html.parser")
     texts = [t.get_text(" ", strip=True) for t in soup.find_all(
         ["h1","h2","h3","p","li","div","span","section","article"]
     )]
     long_text = "\n".join([t for t in texts if t and len(t.split()) > 3])
+    # Notfallback: Wenn HTML leer war, lange genug war aber (z.B. Script-Only), nimm Roh-HTML
+    if len(long_text) < 500:
+        long_text = soup.get_text(" ", strip=True)
     return long_text[:40000]
 
-# ---------- Extract ----------
-_EXTRACT_PROMPT = """Du bist Recruiter. Extrahiere strukturierte Kerndaten aus der Stellenanzeige.
-Gib NUR gültiges JSON zurück mit genau diesen Keys:
-{"company":"","role":"","location":"","contact_person":"","language":"","must_have":[ ],
-"top_tasks":[ ],"benefits":[ ],"culture_notes":""}
-Regeln:
-- must_have: max 3 Muss-Kriterien (präzise).
-- top_tasks: max 3 konkrete Aufgaben.
-- benefits: max 3 kurze Punkte.
-- language: "de" oder "en".
-- Leere Felder mit "" oder [].
-"""
 
 def _extract_job_json(job_text: str) -> dict:
     resp = client.chat.completions.create(
