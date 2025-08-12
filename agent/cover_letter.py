@@ -2,11 +2,27 @@
 import os, json, re, requests
 from datetime import datetime
 from bs4 import BeautifulSoup
-from openai import OpenAI
+from openai import OpenAI, BadRequestError  # wichtig: Fehlerklasse importieren
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# ---------- Globale Prompt-Konstante (FIX für NameError) ----------
+# ---------- Universeller Chat-Wrapper (fix für Modelle ohne Sampling-Parameter) ----------
+def _chat(messages, model="gpt-5", **kwargs):
+    """
+    Ruft /chat/completions auf. Wenn das Modell Sampling-Parameter (temperature/top_p/penalties)
+    nicht unterstützt, werden sie automatisch entfernt und der Call erneut gesendet.
+    """
+    try:
+        return client.chat.completions.create(model=model, messages=messages, **kwargs)
+    except BadRequestError as e:
+        msg = str(e)
+        if "unsupported_value" in msg or "does not support" in msg:
+            for k in ("temperature", "top_p", "frequency_penalty", "presence_penalty"):
+                kwargs.pop(k, None)
+            return client.chat.completions.create(model=model, messages=messages, **kwargs)
+        raise
+
+# ---------- Globale Prompt-Konstante ----------
 EXTRACT_PROMPT = """Du bist Recruiter. Extrahiere strukturierte Kerndaten aus der Stellenanzeige.
 Gib NUR gültiges JSON zurück mit genau diesen Keys:
 {"company":"","role":"","location":"","contact_person":"","language":"","must_have":[ ],
@@ -21,14 +37,13 @@ Regeln:
 
 # ---------- Fetch (robust mit Headern + Fallback) ----------
 def _fetch_job_text(job_url: str) -> str:
-    import urllib.parse as up
     headers = {
         "User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                        "AppleWebKit/537.36 (KHTML, like Gecko) "
                        "Chrome/124.0.0.0 Safari/537.36"),
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7",
-        "Cache-Control": "no-cache","Pragma": "no-cache",
+        "Cache-Control": "no-cache", "Pragma": "no-cache",
     }
 
     def _try(url: str):
@@ -44,13 +59,13 @@ def _fetch_job_text(job_url: str) -> str:
     except Exception:
         pass
 
-    # Fallback-Proxy: Plaintext
+    # Fallback-Proxy: Plaintext (hilft bei Anti-Bot/JS)
     if not html:
         try:
             proxy_url = f"https://r.jina.ai/{job_url}"
             proxied = requests.get(proxy_url, headers=headers, timeout=20)
             if proxied.status_code == 200 and len(proxied.text) > 500:
-                return proxied.text[:40000]  # ist bereits Plaintext
+                return proxied.text[:40000]  # bereits Plaintext
         except Exception:
             pass
 
@@ -68,12 +83,13 @@ def _fetch_job_text(job_url: str) -> str:
 
 # ---------- Extract ----------
 def _extract_job_json(job_text: str) -> dict:
-    # job_text kann HTML-Extrakt ODER Proxy-Plaintext sein
-    resp = client.chat.completions.create(
+    resp = _chat(
         model="gpt-5",
         temperature=0.2, top_p=0.9, frequency_penalty=0.1,
-        messages=[{"role":"system","content":EXTRACT_PROMPT},
-                  {"role":"user","content":job_text}]
+        messages=[
+            {"role": "system", "content": EXTRACT_PROMPT},
+            {"role": "user", "content": job_text}
+        ]
     )
     raw = resp.choices[0].message.content.strip()
     try:
@@ -81,10 +97,14 @@ def _extract_job_json(job_text: str) -> dict:
     except Exception:
         m = re.search(r"\{.*\}", raw, re.S)
         if m:
-            try: return json.loads(m.group(0))
-            except Exception: pass
-        return {"company":"","role":"","location":"","contact_person":"","language":"",
-                "must_have":[],"top_tasks":[],"benefits":[],"culture_notes":""}
+            try:
+                return json.loads(m.group(0))
+            except Exception:
+                pass
+        return {
+            "company": "", "role": "", "location": "", "contact_person": "", "language": "",
+            "must_have": [], "top_tasks": [], "benefits": [], "culture_notes": ""
+        }
 
 # ---------- CV distill ----------
 def _distill_cv(cv_text: str, job: dict) -> str:
@@ -92,9 +112,10 @@ def _distill_cv(cv_text: str, job: dict) -> str:
     focus = "; ".join(focus_list) if focus_list else "Rollenpassung allgemein"
     prompt = f"""Ziehe aus diesem CV nur Belege für folgende Schwerpunkte: {focus}.
 Gib 2–3 ultrakurze, faktenreiche Sätze aus, keine Listen, keine Floskeln."""
-    resp = client.chat.completions.create(
+    resp = _chat(
         model="gpt-5", temperature=0.3,
-        messages=[{"role":"system","content":prompt},{"role":"user","content":cv_text}]
+        messages=[{"role": "system", "content": prompt},
+                  {"role": "user", "content": cv_text}]
     )
     return resp.choices[0].message.content.strip()
 
@@ -136,10 +157,10 @@ Erzeuge das Anschreiben in exakt dieser Struktur:
 [Abschiedsformel]
 [Dein Name]
 """
-    resp = client.chat.completions.create(
+    resp = _chat(
         model="gpt-5", temperature=0.3, top_p=0.9, frequency_penalty=0.2,
-        messages=[{"role":"system","content":system_prompt},
-                  {"role":"user","content":user_prompt}],
+        messages=[{"role": "system", "content": system_prompt},
+                  {"role": "user", "content": user_prompt}]
     )
     return resp.choices[0].message.content.strip()
 
@@ -147,19 +168,25 @@ Erzeuge das Anschreiben in exakt dieser Struktur:
 def _validate_and_fix(letter: str) -> str:
     def word_count(s): return len(re.findall(r"\w+", s))
     violations = []
-    if word_count(letter) > 300: violations.append("Wortzahl > 300")
-    must_blocks = ["[Dein Name]","[Deine Adresse]","[PLZ Ort]","**[","]**","[Anrede]","[Abschiedsformel]"]
-    if not all(b in letter for b in must_blocks): violations.append("Pflichtblöcke fehlen")
+    if word_count(letter) > 300:
+        violations.append("Wortzahl > 300")
+    must_blocks = ["[Dein Name]", "[Deine Adresse]", "[PLZ Ort]", "**[", "]**", "[Anrede]", "[Abschiedsformel]"]
+    if not all(b in letter for b in must_blocks):
+        violations.append("Pflichtblöcke fehlen")
     if re.search(r"\bmit großem Interesse\b|teamfähig|belastbar|flexibel", letter, re.I):
         violations.append("Floskeln enthalten")
     for s in re.split(r"[.!?]\s+", letter):
-        if s.count(" und ") > 1: violations.append("Zu viele 'und' in einem Satz"); break
-    if not violations: return letter
+        if s.count(" und ") > 1:
+            violations.append("Zu viele 'und' in einem Satz")
+            break
+    if not violations:
+        return letter
     fix_prompt = f"""Korrigiere den Text gemäß Regeln: {', '.join(violations)}.
 Behalte Inhalt, aber kürze präzise. DIN-5008 Struktur unverändert lassen. Gib NUR den korrigierten Text."""
-    resp = client.chat.completions.create(
+    resp = _chat(
         model="gpt-5", temperature=0.2,
-        messages=[{"role":"system","content":fix_prompt},{"role":"user","content":letter}]
+        messages=[{"role": "system", "content": fix_prompt},
+                  {"role": "user", "content": letter}]
     )
     return resp.choices[0].message.content.strip()
 
@@ -168,7 +195,7 @@ def generate_cover_letter(cv_text: str, job_url_or_text: str, stil: str, languag
     """
     Akzeptiert entweder eine URL (http/https) ODER bereits eingefügten Anzeigentext.
     """
-    if job_url_or_text.strip().lower().startswith(("http://","https://")):
+    if job_url_or_text.strip().lower().startswith(("http://", "https://")):
         job_text = _fetch_job_text(job_url_or_text.strip())
     else:
         job_text = job_url_or_text.strip()  # User hat Plaintext eingefügt
@@ -183,20 +210,20 @@ def check_cv(cv_text: str) -> str:
     prompt = """Du bist ein erfahrener Karriereberater. Analysiere diesen Lebenslauf auf Schwächen,
 Lücken, Unklarheiten oder Verbesserungspotenzial. Gib konkrete, praxisnahe Verbesserungsvorschläge.
 Antworte stichpunktartig und ehrlich."""
-    resp = client.chat.completions.create(
+    resp = _chat(
         model="gpt-5", temperature=0.3,
-        messages=[{"role":"system","content":prompt},
-                  {"role":"user","content":cv_text}]
+        messages=[{"role": "system", "content": prompt},
+                  {"role": "user", "content": cv_text}]
     )
     return resp.choices[0].message.content
 
 def uniqueness_check(letter: str) -> str:
     prompt = """Du bist Bewerbungsexperte. Prüfe, ob das folgende Anschreiben einzigartig wirkt.
 Bewerte kurz (1 Satz). Liste stichpunktartig generische Passagen und gib jeweils eine bessere Alternative."""
-    resp = client.chat.completions.create(
+    resp = _chat(
         model="gpt-5", temperature=0.3,
-        messages=[{"role":"system","content":prompt},
-                  {"role":"user","content":f"ANSCHREIBEN:\n{letter}"}]
+        messages=[{"role": "system", "content": prompt},
+                  {"role": "user", "content": f"ANSCHREIBEN:\n{letter}"}]
     )
     return resp.choices[0].message.content
 
@@ -210,8 +237,8 @@ Anschreiben:
 Kritikpunkte:
 {kritikpunkte}
 """
-    resp = client.chat.completions.create(
+    resp = _chat(
         model="gpt-5", temperature=0.3,
-        messages=[{"role":"system","content":prompt}]
+        messages=[{"role": "system", "content": prompt}]
     )
     return resp.choices[0].message.content.strip()
