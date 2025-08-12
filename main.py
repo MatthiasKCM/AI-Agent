@@ -7,6 +7,7 @@ import streamlit.components.v1 as components
 
 st.set_page_config(page_title="KI-Bewerbungs-Agent", page_icon="🧠")
 
+# Hintergrund einstellbar!
 st.markdown(
     """
     <style>
@@ -20,9 +21,11 @@ st.markdown(
     unsafe_allow_html=True
 )
 
+# Google Analytics Tracking
 GA_ID = "G-NW6J93TNXC"
 components.html(
     f"""
+    <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id={GA_ID}"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
@@ -34,83 +37,74 @@ components.html(
     height=0,
 )
 
+# Titel
 st.title("🧠 KI-Bewerbungs-Agent")
 
-st.success(
-    "🎯 **Ablauf:**\n"
-    "1. Lebenslauf als PDF hochladen\n"
-    "2. **Reinen Text** der Stellenanzeige einfügen (URLs werden nicht geladen)\n"
-    "3. Stil & Sprache wählen\n"
-    "4. „Anschreiben generieren“\n"
-    "5. Prüfen, verbessern, PDF exportieren"
-)
+st.success("""
+🎯 **So funktioniert’s in 5 Schritten:**
 
+1. Lebenslauf als PDF hochladen  
+2. Stellenanzeige kopieren & einfügen  
+3. Stil und Sprache auswählen  
+4. Auf „Anschreiben generieren“ klicken  
+5. Anschreiben prüfen, anpassen und als PDF exportieren
+
+*Fertig! Dein Anschreiben ist bereit zum Versenden.*
+""")
+
+# Frontend
 cv_file = st.file_uploader("📎 Lebenslauf (PDF)")
-job_plain = st.text_area("🧾 Reinen Text der Stellenanzeige hier einfügen (kein Link!)", height=220)
-
+job_text = st.text_area("🧾 Stellenanzeige einfügen")
 stil = st.selectbox("Stil wählen", ["Formell", "Kreativ", "Selbstbewusst"])
 language = st.selectbox("Sprache wählen", ["Deutsch", "Englisch", "Französisch"])
 
 # Lebenslauf-Check
-if cv_file and st.button("🕵️ Lebenslauf checken"):
-    try:
+if cv_file:
+    if st.button("🕵️ Lebenslauf checken"):
         cv_text = extract_text_from_pdf(cv_file)
         cv_feedback = check_cv(cv_text)
-        st.info("CV-Check:\n" + cv_feedback)
-    except Exception as e:
-        st.error("❌ Konnte den Lebenslauf nicht lesen.")
-        st.exception(e)
+        st.info("CV-Check: \n" + cv_feedback)
 
 # Anschreiben generieren
-if st.button("✍️ Anschreiben generieren") and cv_file and job_plain.strip():
-    try:
-        cv_text = extract_text_from_pdf(cv_file)
-        with st.status("⏳ Erstelle Anschreiben …", expanded=False) as status:
-            st.session_state['letter'] = generate_cover_letter(cv_text, job_plain, stil, language)
-            status.update(label="✅ Anschreiben erstellt", state="complete")
-        st.success("✅ Anschreiben erstellt!")
-    except Exception as e:
-        st.error("❌ Konnte die Stellenanzeige nicht verarbeiten.")
-        st.exception(e)
+if st.button("✍️ Anschreiben generieren") and cv_file and job_text:
+    cv_text = extract_text_from_pdf(cv_file)
+    st.session_state['letter'] = generate_cover_letter(cv_text, job_text, stil, language)
+    st.success("✅ Anschreiben erstellt!")
 
-st.warning(
-    "⚠️ **Hinweis:** Platzhalter (z. B. `[Empfänger-Adresse]`) erscheinen, wenn Infos fehlen. "
-    "Bitte vor dem Versenden ersetzen."
-)
+# Hinweis zu Platzhaltern
+st.warning("""
+⚠️ **Wichtiger Hinweis:**  
+Im Anschreiben können Platzhalter (z. B. `[Unternehmensname]`, `[Plattformname]`, `[Teamname]`, `[Empfänger-Adresse]` etc.) erscheinen,  
+wenn entsprechende Infos im Lebenslauf oder in der Stellenanzeige fehlen.  
+**Bitte prüfe dein Anschreiben sorgfältig und ersetze alle Platzhalter durch die echten Namen und Daten, bevor du es versendest!**
+""")
 
-# Ergebnis / Nachbearbeitung
+# Anschreiben anzeigen, falls vorhanden
 if 'letter' in st.session_state and st.session_state['letter']:
-    edited_letter = st.text_area("📄 Ergebnis (bearbeitbar)",
-                                 value=st.session_state['letter'],
-                                 height=500,
-                                 key="editable_letter")
+    edited_letter = st.text_area("📄 Ergebnis (bearbeitbar)", value=st.session_state['letter'], height=500, key="editable_letter")
     st.session_state['letter'] = edited_letter
 
+    # Plagiat-Check
     if st.button("🕵️‍♂️ Einzigartigkeit prüfen"):
-        try:
-            unique = uniqueness_check(st.session_state['letter'])
-            st.session_state['kritikpunkte'] = unique
-            st.info("Plagiat-Check & Kritikpunkte:\n" + unique)
-        except Exception as e:
-            st.error("❌ Prüfen der Einzigartigkeit fehlgeschlagen.")
-            st.exception(e)
+        unique = uniqueness_check(st.session_state['letter'])
+        st.session_state['kritikpunkte'] = unique
+        st.info("Plagiat-Check & Kritikpunkte:\n" + unique)
 
+    # Auto-Verbesserung
     if 'kritikpunkte' in st.session_state and st.session_state['kritikpunkte']:
         if st.button("💡 Kritikpunkte automatisch verbessern"):
-            try:
-                improved_letter = improve_letter(st.session_state['letter'], st.session_state['kritikpunkte'])
-                st.session_state['letter'] = improved_letter
-                st.success("✅ Verbesserte Version erstellt!")
-                st.text_area("📄 Neue Version", value=improved_letter, height=500)
-            except Exception as e:
-                st.error("❌ Verbesserung fehlgeschlagen.")
-                st.exception(e)
+            improved_letter = improve_letter(st.session_state['letter'], st.session_state['kritikpunkte'])
+            st.session_state['letter'] = improved_letter
+            st.success("✅ Verbesserte Version erstellt!")
+            st.text_area("📄 Neue Version", value=improved_letter, height=500)
 
+    # PDF Export
     if st.button("📄 PDF-Export"):
-        try:
-            filename = create_pdf(st.session_state['letter'])
-            with open(filename, "rb") as f:
-                st.download_button("Download PDF", f, file_name=filename, mime="application/pdf")
-        except Exception as e:
-            st.error("❌ PDF-Export fehlgeschlagen.")
-            st.exception(e)
+        filename = create_pdf(st.session_state['letter'])
+        with open(filename, "rb") as f:
+            st.download_button(
+                label="Download PDF",
+                data=f,
+                file_name=filename,
+                mime="application/pdf"
+            )

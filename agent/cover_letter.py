@@ -1,166 +1,122 @@
 # agent/cover_letter.py
-import os, json
+import os
 from datetime import datetime
 from openai import OpenAI
 
-# Modell zentral steuerbar (ENV), fällt zurück auf gpt-4o-mini
-MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# --- Helfer zum Call ohne Sampling-Parameter (vermeidet 400-Fehler) ---
-def _chat(messages):
-    return client.chat.completions.create(model=MODEL, messages=messages)
-
-# --- Prompts ---
-EXTRACT_PROMPT = """Du bist Recruiter. Extrahiere Kerndaten aus der Stellenanzeige.
-Gib NUR gültiges JSON mit genau diesen Keys zurück:
-{"company":"","role":"","location":"","contact_person":"","language":"","must_have":[],"top_tasks":[],"benefits":[],"culture_notes":""}
-Regeln:
-- must_have: max 3 präzise Muss-Kriterien
-- top_tasks: max 3 konkrete Aufgaben
-- benefits: max 3 kurze Punkte
-- language: "de" oder "en"
-- Leere Felder mit "" bzw. []
-"""
-
-def _extract_job_json(job_text: str) -> dict:
-    job_text = job_text.strip()[:20000]
-    resp = _chat([
-        {"role":"system","content":EXTRACT_PROMPT},
-        {"role":"user","content":job_text}
-    ])
-    raw = resp.choices[0].message.content.strip()
-    # Defensive JSON-Parse
-    import re, json as _json
-    try:
-        return _json.loads(raw)
-    except Exception:
-        m = re.search(r"\{.*\}", raw, re.S)
-        if m:
-            try:
-                return _json.loads(m.group(0))
-            except Exception:
-                pass
-    return {"company":"","role":"","location":"","contact_person":"","language":"",
-            "must_have":[],"top_tasks":[],"benefits":[],"culture_notes":""}
-
-def _distill_cv(cv_text: str, job: dict) -> str:
-    focus_list = (job.get("must_have") or [])[:3] + (job.get("top_tasks") or [])[:3]
-    focus = "; ".join(focus_list) if focus_list else "Rollenpassung allgemein"
-    prompt = f"""Ziehe aus diesem CV nur Belege für folgende Schwerpunkte: {focus}.
-Gib 2–3 sehr kurze, faktenreiche Sätze aus. Keine Listen. Keine Floskeln."""
-    resp = _chat([
-        {"role":"system","content":prompt},
-        {"role":"user","content":cv_text[:20000]}
-    ])
-    return resp.choices[0].message.content.strip()
-
-def _generate_letter(cv_focus: str, job: dict, stil: str, language: str) -> str:
+def generate_cover_letter(cv_text, job_description, stil, language):
     today = datetime.now().strftime("%d.%m.%Y")
     system_prompt = f"""
-Du bist ein erfahrener Bewerbungsschreiber (DE-Markt). DIN-5008.
-Pflicht: Alle Blöcke ausfüllen. Platzhalter erlaubt. Keine Bulletpoints. Max 300 Wörter.
-Fokus: exakt 2–3 Qualifikationen aus CV_FOKUS; klare Motivation für genau diese Rolle.
-Tabu: Floskeln („mit großem Interesse“, „teamfähig“), generische Phrasen.
-Sätze kurz; max ein „und“ pro Satz. Betreff fett+zentriert; Rest linksbündig.
-Stil: {stil} | Sprache: {language}
-"""
-    user_prompt = f"""
-JOB_JSON:
-{json.dumps(job, ensure_ascii=False)}
-CV_FOKUS:
-{cv_focus}
+    Du bist ein erfahrener Bewerbungsschreiber, der seit über 15 Jahren passgenaue, überzeugende Anschreiben für den deutschen Arbeitsmarkt verfasst.  
+    Du verstehst es, einen persönlichen Ton zu treffen, der zugleich professionell, klar und individuell auf die Stellenanzeige zugeschnitten ist – ohne generische Standardfloskeln.
 
-Erzeuge das Anschreiben in exakt dieser Struktur:
+    **Deine Aufgabe:**  
+    Schreibe ein vollständiges Anschreiben nach DIN-5008-Standard.  
+    Alle Pflichtblöcke müssen vorhanden sein – selbst wenn Daten fehlen, verwende sinnvolle Platzhalter wie [Empfänger-Adresse].  
+    Niemals einen Block auslassen.  
 
-[Dein Name]
-[Deine Adresse]
-[PLZ Ort]
+    **Formatvorgaben:**  
+    - Nur der Betreff ist fett und zentriert, alle anderen Blöcke linksbündig.  
+    - Maximal 4 Zeilen pro Absatz.  
+    - Keine Aufzählungen oder Bulletpoints.  
+    - Kein reines Wiederholen des Lebenslaufs.  
+    - Keine leeren Phrasen („Mit großem Interesse habe ich...“).  
+    - Maximal 300 Wörter – falls nötig, kürze zuerst unwichtige Infos.  
 
-[{job.get('company','[Empfänger/Firma]')}]
-[Empfänger-Adresse]
-[PLZ Ort]
+    **Inhaltlicher Fokus:**  
+    - Wähle maximal 2–3 wirklich relevante Qualifikationen für die Stelle.  
+    - Zeige eine klare, persönliche Motivation für genau diese Position.  
+    - Streiche alles, was keinen direkten Bezug zur Anzeige hat.  
 
-[Ort, Datum: {today}]
+    **Schreibstil:**  
+    - Klar, aktiv, präzise.  
+    - Persönlich, aber ohne Überschwang.  
+    - Nie mehr als ein „und“ pro Satz.  
+    - Sprache: {language}  
+    - Tonalität: {stil}  
 
-**[{job.get('role','[Stellenbezeichnung]')}]**
+    **Exakte Struktur (immer ausfüllen):**
 
-[Anrede]
+    [Dein Name]  
+    [Deine Adresse]  
+    [PLZ Ort]  
 
-[Fließtext – 2–3 Absätze, je ≤4 Zeilen, mit 2–3 konkreten Qualifikationsbezügen
-und persönlicher Motivation; Bezug auf {job.get('location','[Ort]')} oder Benefit, falls sinnvoll]
+    [Empfänger/Firma]  
+    [Empfänger-Adresse]  
+    [PLZ Ort]  
 
-[Abschiedsformel]
-[Dein Name]
-"""
-    resp = _chat([
-        {"role":"system","content":system_prompt},
-        {"role":"user","content":user_prompt}
-    ])
-    return resp.choices[0].message.content.strip()
+    [Ort, Datum: {today}]  
 
-def _validate_and_fix(letter: str) -> str:
-    import re
-    def wc(s): return len(re.findall(r"\w+", s))
-    violations = []
-    if wc(letter) > 300: violations.append("Wortzahl > 300")
-    must = ["[Dein Name]","[Deine Adresse]","[PLZ Ort]","**[","]**","[Anrede]","[Abschiedsformel]"]
-    if not all(b in letter for b in must): violations.append("Pflichtblöcke fehlen")
-    if re.search(r"\bmit großem Interesse\b|teamfähig|belastbar|flexibel", letter, re.I):
-        violations.append("Floskeln enthalten")
-    for s in re.split(r"[.!?]\s+", letter):
-        if s.count(" und ") > 1:
-            violations.append("Zu viele 'und' in einem Satz"); break
-    if not violations: return letter
-    fix_prompt = f"""Korrigiere den Text gemäß Regeln: {', '.join(violations)}.
-Kürze präzise. DIN-5008-Struktur exakt beibehalten. Gib NUR den korrigierten Text."""
-    resp = _chat([
-        {"role":"system","content":fix_prompt},
-        {"role":"user","content":letter}
-    ])
-    return resp.choices[0].message.content.strip()
+    **[Stellenbezeichnung]**  (fett, zentriert, ohne "Betreff:" davor)
 
-# --- Public API ---
-def generate_cover_letter(cv_text: str, job_text_plain_or_url: str, stil: str, language: str) -> str:
-    # Kein Scraping mehr. Wenn URL erkannt wird: Fehlermeldung fordern, Text einzufügen.
-    source = job_text_plain_or_url.strip()
-    if source.lower().startswith(("http://","https://")):
-        raise RuntimeError("Bitte den reinen Text der Stellenanzeige einfügen (URLs werden nicht geladen).")
-    job_json = _extract_job_json(source)
-    cv_focus = _distill_cv(cv_text, job_json)
-    draft = _generate_letter(cv_focus, job_json, stil, language)
-    final = _validate_and_fix(draft)
-    return final
+    [Anrede]  
 
-def check_cv(cv_text: str) -> str:
-    prompt = """Du bist Karriereberater. Analysiere Schwächen, Lücken, Unklarheiten, Verbesserungen.
-Gib konkrete, praxisnahe Vorschläge. Stichpunktartig. Ehrlich."""
-    resp = _chat([
-        {"role":"system","content":prompt},
-        {"role":"user","content":cv_text[:20000]}
-    ])
-    return resp.choices[0].message.content
+    [Fließtext – 2–3 Absätze, kurze Sätze, klare Argumentation]
 
-def uniqueness_check(letter: str) -> str:
-    prompt = """Bewerte kurz (1 Satz), ob das Anschreiben generisch wirkt.
-Liste stichpunktartig generische Passagen und gib jeweils eine bessere Alternative."""
-    resp = _chat([
-        {"role":"system","content":prompt},
-        {"role":"user","content":f"ANSCHREIBEN:\n{letter[:12000]}"}]
+    [Abschiedsformel]  
+    [Dein Name]
+
+    Denke wie ein Profi, der weiß: Ein gutes Anschreiben muss klingen, als hätte es ein Mensch in Echtzeit geschrieben – nicht wie ein generierter Text.
+    """
+
+    response = client.chat.completions.create(
+        model="gpt-5",
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"LEBENSLAUF:\n{cv_text}"},
+            {"role": "user", "content": f"STELLENANZEIGE:\n{job_description}"},
+            {"role": "user", "content": "Schreibe ein Bewerbungsanschreiben."}
+        ]
     )
-    return resp.choices[0].message.content
+    return response.choices[0].message.content
 
-def improve_letter(letter: str, kritikpunkte: str) -> str:
-    prompt = f"""Überarbeite das Anschreiben so, dass alle Kritikpunkte präzise umgesetzt werden.
-Mache es spezifisch, entferne Floskeln. Gib NUR den neuen Text zurück.
+def check_cv(cv_text):
+    prompt = """
+    Du bist ein erfahrener Karriereberater. Analysiere diesen Lebenslauf auf Schwächen, Lücken, Unklarheiten oder Verbesserungspotenzial.
+    Gib konkrete, praxisnahe Verbesserungsvorschläge. Antworte stichpunktartig und ehrlich.
+    """
+    response = client.chat.completions.create(
+        model="gpt-5",
+        messages=[
+            {"role": "system", "content": prompt},
+            {"role": "user", "content": f"LEBENSLAUF:\n{cv_text}"},
+            {"role": "user", "content": "Analysiere und gib Verbesserungsvorschläge."}
+        ]
+    )
+    return response.choices[0].message.content
 
-Anschreiben:
-{letter[:12000]}
+def uniqueness_check(letter):
+    prompt = """
+    Du bist Bewerbungsexperte. Prüfe, ob das folgende Anschreiben einzigartig ist oder zu sehr nach Standard klingt.
+    Bewerte zuerst kurz (1 Satz). Dann liste bitte stichpunktartig die Passagen oder Formulierungen, die besonders generisch oder austauschbar wirken – und schlage für jeden Punkt eine bessere, individuellere Alternative vor.
+    """
+    response = client.chat.completions.create(
+        model="gpt-5",
+        messages=[
+            {"role": "system", "content": prompt},
+            {"role": "user", "content": f"ANSCHREIBEN:\n{letter}"},
+            {"role": "user", "content": "Bewerte Einzigartigkeit und mache Verbesserungsvorschläge."}
+        ]
+    )
+    return response.choices[0].message.content
 
-Kritikpunkte:
-{kritikpunkte[:8000]}
-"""
-    resp = _chat([
-        {"role":"system","content":prompt}
-    ])
-    return resp.choices[0].message.content.strip()
+def improve_letter(letter, kritikpunkte):
+    prompt = f"""
+    Hier ist ein Bewerbungsschreiben, gefolgt von Kritikpunkten und Verbesserungsvorschlägen.
+    Überarbeite das Anschreiben so, dass es die Vorschläge optimal umsetzt. Baue die Kritikpunkte ein, mache es einzigartiger und vermeide alle generischen Floskeln. Gib nur den neuen Text aus!
+
+    Anschreiben:
+    {letter}
+
+    Kritikpunkte und Verbesserungsvorschläge:
+    {kritikpunkte}
+    """
+    response = client.chat.completions.create(
+        model="gpt-5",
+        messages=[
+            {"role": "system", "content": prompt},
+            {"role": "user", "content": "Verbessere das Anschreiben entsprechend."}
+        ]
+    )
+    return response.choices[0].message.content
