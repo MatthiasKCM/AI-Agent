@@ -59,18 +59,27 @@ language = st.selectbox("Sprache wählen", ["Deutsch", "Englisch", "Französisch
 # Lebenslauf-Check
 if cv_file:
     if st.button("🕵️ Lebenslauf checken"):
-        cv_text = extract_text_from_pdf(cv_file)
-        cv_feedback = check_cv(cv_text)
-        st.info("CV-Check: \n" + cv_feedback)
+        try:
+            cv_text = extract_text_from_pdf(cv_file)
+        except Exception as e:
+            st.error(f"❌ Fehler beim Lesen des Lebenslaufs: {str(e)}")
+            st.stop()
+        try:
+            cv_feedback = check_cv(cv_text)
+            st.info("CV-Check: \n" + cv_feedback)
+        except Exception as e:
+            st.error(f"Fehler beim Checken des Lebenslaufes!  {str(e)}")
 
 # Anschreiben generieren
 if st.button("✍️ Anschreiben generieren") and cv_file and job_url:
-    cv_text = extract_text_from_pdf(cv_file)
-
+    try:
+        cv_text = extract_text_from_pdf(cv_file)
+    except Exception as e:
+        st.error(f"❌ Fehler beim Lesen des Lebenslaufs: {str(e)}")
+        st.stop()
     try:
         job_description = get_job_text_from_url(job_url)
         lower = job_description.lower()
-
         if "indeed." in lower:
             st.error(
                 "❌ Indeed blockt automatische Abrufe. Bitte den **reinen Text** der Stellenanzeige hier einfügen (kein Link).")
@@ -78,13 +87,9 @@ if st.button("✍️ Anschreiben generieren") and cv_file and job_url:
         else:
             st.session_state['letter'] = generate_cover_letter(cv_text, job_description, stil, language)
             st.success("✅ Anschreiben erstellt!")
-
     except Exception as e:
         st.error(f"❌ Fehler beim Generieren des Anschreibens: {str(e)}")
         st.stop()
-
-
-
 
 # Hinweis zu Platzhaltern
 st.warning("""
@@ -96,6 +101,7 @@ wenn entsprechende Infos im Lebenslauf oder in der Stellenanzeige fehlen.
 
 # Anschreiben anzeigen, falls vorhanden
 if 'letter' in st.session_state and st.session_state['letter']:
+    #Editierbares Textfeld
     edited_letter = st.text_area("📄 Ergebnis (bearbeitbar)", value=st.session_state['letter'], height=500, key="editable_letter")
     st.session_state['letter'] = edited_letter
 
@@ -105,7 +111,7 @@ if 'letter' in st.session_state and st.session_state['letter']:
         st.session_state['kritikpunkte'] = unique
         st.info("Plagiat-Check & Kritikpunkte:\n" + unique)
 
-    # Auto-Verbesserung
+    # Auto-Verbesserung, st.session_state macht ein Dictionary mit Key in []
     if 'kritikpunkte' in st.session_state and st.session_state['kritikpunkte']:
         if st.button("💡 Kritikpunkte automatisch verbessern"):
             improved_letter = improve_letter(st.session_state['letter'], st.session_state['kritikpunkte'])
