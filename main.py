@@ -52,7 +52,7 @@ st.success("""
 
 # Frontend
 cv_file = st.file_uploader("📎 Lebenslauf (PDF)")
-job_text = st.text_area("🧾 Stellenanzeige einfügen (bitte reinen Text, keine URL)")
+job_text = st.text_area("🧾 Stellenanzeige einfügen")
 stil = st.selectbox("Stil wählen", ["Formell", "Kreativ", "Selbstbewusst"])
 language = st.selectbox("Sprache wählen", ["Deutsch", "Englisch", "Französisch"])
 
@@ -72,9 +72,7 @@ if st.button("✍️ Anschreiben generieren") and cv_file and job_text:
         if "indeed." in lower:
             st.error("❌ Indeed blockt automatische Abrufe. Bitte den **reinen Text** der Stellenanzeige hier einfügen (kein Link).")
             st.stop()
-        else:
-            st.error("❌ Bitte keinen Link einfügen. Kopiere den **reinen Text** der Stellenanzeige hier hinein.")
-            st.stop()
+
 
     cv_text = extract_text_from_pdf(cv_file)
     st.session_state['letter'] = generate_cover_letter(cv_text, jt, stil, language)
