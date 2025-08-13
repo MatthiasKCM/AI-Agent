@@ -1,7 +1,7 @@
 # main.py
 from agent.cover_letter import generate_cover_letter, check_cv, uniqueness_check, improve_letter
 from agent.pdf_export import create_pdf
-from agent.utils import extract_text_from_pdf
+from agent.utils import extract_text_from_pdf, get_job_text_from_url
 import streamlit as st
 import streamlit.components.v1 as components
 
@@ -66,12 +66,11 @@ if cv_file:
 # Anschreiben generieren
 if st.button("✍️ Anschreiben generieren") and cv_file and job_url:
     cv_text = extract_text_from_pdf(cv_file)
-    job_description = job_url.strip()
-    lower = job_description.lower()
     st.session_state['letter'] = generate_cover_letter(cv_text, job_url, stil, language)
     st.success("✅ Anschreiben erstellt!")
+    job_description = get_job_text_from_url(job_url)
+    lower = job_description.lower()
 
-    # Blockiere URLs generell und Indeed speziell
     if lower.startswith(("http://", "https://")):
         if "indeed." in lower:
             st.error("❌ Indeed blockt automatische Abrufe. Bitte den **reinen Text** der Stellenanzeige hier einfügen (kein Link).")
