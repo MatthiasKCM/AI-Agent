@@ -65,9 +65,12 @@ if cv_file:
 
 # Anschreiben generieren
 if st.button("✍️ Anschreiben generieren") and cv_file and job_text:
-    # Blockiere URLs generell und Indeed speziell
+    cv_text = extract_text_from_pdf(cv_file)
+    st.session_state['letter'] = generate_cover_letter(cv_text, job_text, stil, language)
+    st.success("✅ Anschreiben erstellt!")
     jt = job_text.strip()
     lower = jt.lower()
+    # Blockiere URLs generell und Indeed speziell
     if lower.startswith(("http://", "https://")):
         if "indeed." in lower:
             st.error("❌ Indeed blockt automatische Abrufe. Bitte den **reinen Text** der Stellenanzeige hier einfügen (kein Link).")
