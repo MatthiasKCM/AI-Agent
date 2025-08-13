@@ -1,7 +1,7 @@
 # main.py
 from agent.cover_letter import generate_cover_letter, check_cv, uniqueness_check, improve_letter
 from agent.pdf_export import create_pdf
-from agent.utils import extract_text_from_pdf
+from agent.utils import extract_text_from_pdf, extract_job_text
 import streamlit as st
 import streamlit.components.v1 as components
 
@@ -50,9 +50,9 @@ st.success("""
 5. Anschreiben prüfen, anpassen und als PDF exportieren
 """)
 
-# Frontend
+# Frontend Boxen
 cv_file = st.file_uploader("📎 Lebenslauf (PDF)")
-job_text = st.text_area("🧾 Stellenanzeige einfügen")
+job_url = st.text_area("🧾 Stellenanzeige einfügen (Link)")
 stil = st.selectbox("Stil wählen", ["Formell", "Kreativ", "Selbstbewusst"])
 language = st.selectbox("Sprache wählen", ["Deutsch", "Englisch", "Französisch"])
 
@@ -64,21 +64,21 @@ if cv_file:
         st.info("CV-Check: \n" + cv_feedback)
 
 # Anschreiben generieren
-if st.button("✍️ Anschreiben generieren") and cv_file and job_text:
-    cv_text = extract_text_from_pdf(cv_file)
-    st.session_state['letter'] = generate_cover_letter(cv_text, job_text, stil, language)
-    st.success("✅ Anschreiben erstellt!")
-    jt = job_text.strip()
-    lower = jt.lower()
-    # Blockiere URLs generell und Indeed speziell
-    if lower.startswith(("http://", "https://")):
-        if "indeed." in lower:
-            st.error("❌ Indeed blockt automatische Abrufe. Bitte den **reinen Text** der Stellenanzeige hier einfügen (kein Link).")
-            st.stop()
-
-
-    cv_text = extract_text_from_pdf(cv_file)
-    st.session_state['letter'] = generate_cover_letter(cv_text, jt, stil, language)
+if st.button("✍️ Anschreiben generieren") and cv_file and job_url:
+    try:
+        cv_text = extract_text_from_pdf(cv_file)
+    except Exception as e:
+        st.error(f"❌ Konnte PDF nicht lesen: {e}")
+        st.stop()
+    try:
+        job_description = extract_job_text(job_url)
+    except Exception as e:
+        st.error(f"❌ Konnte Stellenanzeige von der URL nicht extrahieren: {e}")
+        st.stop()
+    if not job_description:
+        st.error("❌ Keine Stellenbeschreibung gefunden. Bitte Text einfügen oder eine gültige URL angeben.")
+        st.stop()
+    st.session_state['letter'] = generate_cover_letter(cv_text, job_description, stil, language)
     st.success("✅ Anschreiben erstellt!")
 
 # Hinweis zu Platzhaltern
