@@ -66,8 +66,6 @@ if cv_file:
 # Anschreiben generieren
 if st.button("✍️ Anschreiben generieren") and cv_file and job_url:
     cv_text = extract_text_from_pdf(cv_file)
-    st.session_state['letter'] = generate_cover_letter(cv_text, job_url, stil, language)
-    st.success("✅ Anschreiben erstellt!")
     job_description = get_job_text_from_url(job_url)
     lower = job_description.lower()
 
@@ -75,6 +73,8 @@ if st.button("✍️ Anschreiben generieren") and cv_file and job_url:
         if "indeed." in lower:
             st.error("❌ Indeed blockt automatische Abrufe. Bitte den **reinen Text** der Stellenanzeige hier einfügen (kein Link).")
             st.stop()
+    st.session_state['letter'] = generate_cover_letter(cv_text, job_url, stil, language)
+    st.success("✅ Anschreiben erstellt!")
 
 # Hinweis zu Platzhaltern
 st.warning("""

@@ -3,11 +3,12 @@ import pymupdf as fitz  # PyMuPDF
 import requests
 from bs4 import BeautifulSoup
 
-
+#Extrahiert Lebenslauf
 def extract_text_from_pdf(file):
     data = file.read()
     with fitz.open(stream=data, filetype="pdf") as doc:
         return "\n".join(page.get_text() for page in doc)
+    #Extrahiert Jobbeschreibung aus URL
 def get_job_text_from_url(url):
     try:
         response = requests.get(url, timeout=10)
