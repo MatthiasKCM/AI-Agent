@@ -1,11 +1,16 @@
-# agent/cover_letter.py
 import os
 from datetime import datetime
 from openai import OpenAI
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+# Liefert OpenAI-Client oder wirft klaren Fehler
+def get_openai_client():
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise ValueError("❌ Umgebungsvariable OPENAI_API_KEY fehlt!")
+    return OpenAI(api_key=api_key)
 
 def generate_cover_letter(cv_text, job_description, stil, language):
+    client = get_openai_client()
     today = datetime.now().strftime("%d.%m.%Y")
     system_prompt = f"""
     Du bist ein erfahrener Bewerbungsschreiber, der seit über 15 Jahren passgenaue, überzeugende Anschreiben für den deutschen Arbeitsmarkt verfasst.  
@@ -56,8 +61,6 @@ def generate_cover_letter(cv_text, job_description, stil, language):
 
     [Abschiedsformel]  
     [Dein Name]
-
-    Denke wie ein Profi, der weiß: Ein gutes Anschreiben muss klingen, als hätte es ein Mensch in Echtzeit geschrieben – nicht wie ein generierter Text.
     """
 
     response = client.chat.completions.create(
@@ -71,7 +74,9 @@ def generate_cover_letter(cv_text, job_description, stil, language):
     )
     return response.choices[0].message.content
 
+
 def check_cv(cv_text):
+    client = get_openai_client()
     prompt = """
     Du bist ein erfahrener Karriereberater. Analysiere diesen Lebenslauf auf Schwächen, Lücken, Unklarheiten oder Verbesserungspotenzial.
     Gib konkrete, praxisnahe Verbesserungsvorschläge. Antworte stichpunktartig und ehrlich.
@@ -86,7 +91,9 @@ def check_cv(cv_text):
     )
     return response.choices[0].message.content
 
+
 def uniqueness_check(letter):
+    client = get_openai_client()
     prompt = """
     Du bist Bewerbungsexperte. Prüfe, ob das folgende Anschreiben einzigartig ist oder zu sehr nach Standard klingt.
     Bewerte zuerst kurz (1 Satz). Dann liste bitte stichpunktartig die Passagen oder Formulierungen, die besonders generisch oder austauschbar wirken – und schlage für jeden Punkt eine bessere, individuellere Alternative vor.
@@ -101,7 +108,9 @@ def uniqueness_check(letter):
     )
     return response.choices[0].message.content
 
+
 def improve_letter(letter, kritikpunkte):
+    client = get_openai_client()
     prompt = f"""
     Hier ist ein Bewerbungsschreiben, gefolgt von Kritikpunkten und Verbesserungsvorschlägen.
     Überarbeite das Anschreiben so, dass es die Vorschläge optimal umsetzt. Baue die Kritikpunkte ein, mache es einzigartiger und vermeide alle generischen Floskeln. Gib nur den neuen Text aus!
