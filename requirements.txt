@@ -1,7 +1,7 @@
-streamlit>=1.36
-openai>=1.30
-requests>=2.31
-beautifulsoup4>=4.12
-lxml>=5.2
-pymupdf>=1.24
-fpdf2>=2.7
+streamlit
+openai
+fpdf
+pymupdf
+beautifulsoup4
+requests
+
