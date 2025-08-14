@@ -1,6 +1,9 @@
 import os
 from datetime import datetime
 from openai import OpenAI
+from dotenv import load_dotenv
+load_dotenv()
+
 
 # Liefert OpenAI-Client oder wirft klaren Fehler
 def get_openai_client():
