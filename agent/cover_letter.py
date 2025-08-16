@@ -111,7 +111,7 @@ def uniqueness_check(letter):
     )
     return response.choices[0].message.content
 
-.
+
 def improve_letter(letter, kritikpunkte):
     client = get_openai_client()
     prompt = f"""
