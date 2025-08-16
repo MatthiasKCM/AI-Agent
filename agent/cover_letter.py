@@ -33,7 +33,7 @@ def generate_cover_letter(cv_text, job_description, stil, language):
     - Maximal 300 Wörter – falls nötig, kürze zuerst unwichtige Infos.  
 
     **Inhaltlicher Fokus:**  
-    - Wähle maximal 2–3 wirklich relevante Qualifikationen für die Stelle.  
+    - Wähle maximal 2–3 wirklich relevante Qualifikationen für die Stelle, vorallem Praxiserfahrung aus dem Lebenslauf.
     - Zeige eine klare, persönliche Motivation für genau diese Position.  
     - Streiche alles, was keinen direkten Bezug zur Anzeige hat.  
 

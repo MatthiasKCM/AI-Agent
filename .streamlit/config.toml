@@ -1,6 +1,8 @@
 [server]
-port = 8501
-enableCORS = false
 headless = true
-#
+address = "0.0.0.0"
+enableCORS = false
+# Port über ENV setzen, nicht hardcoden:
+# (trotzdem Start-Command mit --server.port $PORT lassen)
+
 
