@@ -132,3 +132,4 @@ def improve_letter(letter, kritikpunkte):
         ]
     )
     return response.choices[0].message.content
+#
