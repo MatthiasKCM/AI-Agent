@@ -1,6 +1,6 @@
 # 🤖 AI Job Application Agent
 
-**🧪 [Live Demo](https://anschreibenai.streamlit.app/)**  
+**🧪 [Live Demo](https://www.ki-bewerbung.com/)**  
 Test the app instantly in your browser.
 
 
